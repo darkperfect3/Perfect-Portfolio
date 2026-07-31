@@ -14,7 +14,7 @@ Premium professional portfolio platform built on a pnpm workspace monorepo. Feat
 - **API framework**: Express 5 (artifact: `artifacts/api-server`, preview: `/api`)
 - **Database**: PostgreSQL + Drizzle ORM
 - **Auth**: Clerk (Replit-managed, proxy middleware in api-server)
-- **AI**: Google Gemini via Replit AI Integration (`lib/integrations-gemini-ai`)
+- **AI**: Relay AI using Mistral, Qwen and DeepSeek (`lib/integrations-ai-relay`)
 - **Validation**: Zod (`zod/v4`), `drizzle-zod`
 - **API codegen**: Orval (from OpenAPI spec in `lib/api-spec/openapi.yaml`)
 - **Build**: esbuild (CJS bundle for api-server)
@@ -98,3 +98,9 @@ lib/
 - Fonts: Space Grotesk (headings) + Inter (body)
 - Framer Motion page transitions and scroll-triggered animations
 - Recharts for admin analytics dashboard
+
+## Run
+
+- `cd artifacts/api-server && pnpm dev` - Start Backend
+- `cd artifacts/portfolio && pnpm dev` - Start Frontend
+- `artifacts/portfolio/dist/public` production# Perfect-Portfolio

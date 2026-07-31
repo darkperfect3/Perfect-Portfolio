@@ -1,8 +1,0 @@
-uploads = []
-outputs = []
-
-[[generated]]
-id = "vzIkVodt5Zccbie4nHmdv"
-uri = "file://artifacts/portfolio/public/hero-bg.png"
-type = "image"
-title = "Hero background image"

@@ -1,5 +1,0 @@
-- [Express req.params typing](express-req-params-string-array.md) — Express `req.params.x` types as `string | string[]`, breaking drizzle `eq()` calls; cast with `String(...)`.
-- [Multi-provider AI relay pattern](ai-relay-fallback.md) — direct-API-key fallback chain (no OpenRouter) built as its own `@workspace/integrations-ai-relay` lib.
-- [esbuild api-server needs restart](api-server-build-not-watched.md) — api-server workflow does one-shot `build && start`, not a watcher; must restart workflow to pick up route/schema changes.
-- [Gemini model naming](gemini-model.md) — use `gemini-2.5-flash`, not `gemini-2.0-flash` (unsupported, causes UNSUPPORTED_MODEL / silent 500s).
-- [Admin AI shared context](admin-ai-context.md) — one DB-context-builder feeds chat + dashboard-summary so AI answers real-time visitor/message/project questions without function-calling.
