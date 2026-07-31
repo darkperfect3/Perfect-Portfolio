@@ -1,5 +1,28 @@
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
+import { setBaseUrl } from "@workspace/api-client-react";
+
+// Configure API base for the generated client. In production set
+// `VITE_API_BASE` in your Netlify environment to the Render backend URL
+// (for example: https://perfect-portfolio.onrender.com).
+const apiBase = import.meta.env.VITE_API_BASE?.trim() ?? null;
+setBaseUrl(apiBase);
+
+// Preload Clerk JS from a known CDN if not already provided by the runtime.
+// This prevents the Clerk loader from attempting to fetch a malformed URL.
+const clerkJs = (import.meta.env.VITE_CLERK_JS ?? import.meta.env.VITE_CLERK_JS_URL)?.trim();
+const defaultClerkJs = "https://unpkg.com/@clerk/clerk-js@6/dist/clerk.browser.js";
+const clerkScriptUrl = clerkJs && clerkJs !== "" ? clerkJs : defaultClerkJs;
+if (typeof document !== "undefined") {
+	const existing = document.querySelector(`script[src="${clerkScriptUrl}"]`);
+	if (!existing) {
+		const s = document.createElement("script");
+		s.src = clerkScriptUrl;
+		s.async = true;
+		s.crossOrigin = "anonymous";
+		document.head.appendChild(s);
+	}
+}
 
 createRoot(document.getElementById("root")!).render(<App />);
