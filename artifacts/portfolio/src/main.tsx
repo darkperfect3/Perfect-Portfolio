@@ -11,9 +11,7 @@ setBaseUrl(apiBase);
 
 // Preload Clerk JS from a known CDN if not already provided by the runtime.
 // This prevents the Clerk loader from attempting to fetch a malformed URL.
-const clerkJs = (import.meta.env.VITE_CLERK_JS ?? import.meta.env.VITE_CLERK_JS_URL)?.trim();
-const defaultClerkJs = "https://unpkg.com/@clerk/clerk-js@6/dist/clerk.browser.js";
-const clerkScriptUrl = clerkJs && clerkJs !== "" ? clerkJs : defaultClerkJs;
+const clerkScriptUrl = "https://unpkg.com/@clerk/clerk-js@6/dist/clerk.browser.js";
 if (typeof document !== "undefined") {
 	const existing = document.querySelector(`script[src="${clerkScriptUrl}"]`);
 	if (!existing) {

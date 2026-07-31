@@ -37,12 +37,6 @@ export default defineConfig(async ({ mode }) => {
       "import.meta.env.VITE_API_BASE": JSON.stringify(
         process.env.VITE_API_BASE ?? env.VITE_API_BASE ?? process.env.API_BASE ?? env.API_BASE ?? null,
       ),
-      "import.meta.env.VITE_CLERK_JS": JSON.stringify(
-        process.env.VITE_CLERK_JS ?? env.VITE_CLERK_JS ?? process.env.CLERK_JS ?? env.CLERK_JS ?? "",
-      ),
-      "import.meta.env.VITE_CLERK_JS_URL": JSON.stringify(
-        process.env.VITE_CLERK_JS_URL ?? env.VITE_CLERK_JS_URL ?? process.env.CLERK_JS_URL ?? env.CLERK_JS_URL ?? "",
-      ),
     },
     plugins: [
       react(),
