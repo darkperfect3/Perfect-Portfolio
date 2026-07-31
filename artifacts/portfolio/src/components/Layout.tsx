@@ -76,7 +76,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 { href: "/projects", label: "Work", active: location.startsWith("/projects") },
                 { href: "/timeline", label: "Journey", active: location === "/timeline" },
                 { href: "/contact", label: "Contact", active: location === "/contact" },
-              ].map((item, i) => (
+              ].map((item: { href: string; label: string; active: boolean }, i: number) => (
                 <motion.div key={item.href} initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05, duration: 0.2 }}>
                   <Link href={item.href} className={`flex items-center gap-3 px-4 py-3.5 rounded-2xl text-lg font-heading font-semibold transition-colors ${item.active ? "text-primary bg-primary/10" : "text-foreground/70 hover:text-foreground hover:bg-white/5"}`}>
                     {item.active && <div className="w-1.5 h-1.5 rounded-full bg-primary" />}
@@ -119,8 +119,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
               © {new Date().getFullYear()} Perfect|Dev. All rights reserved.
             </p>
           </div>
-          <div className="flex items-center gap-6">
-            {[["Home", "/"], ["Work", "/projects"], ["Journey", "/timeline"], ["Contact", "/contact"]].map(([label, href]) => (
+            <div className="flex items-center gap-6">
+            {([ ["Home", "/"], ["Work", "/projects"], ["Journey", "/timeline"], ["Contact", "/contact"] ] as [string, string][]).map(([label, href]: [string, string]) => (
               <Link key={href} href={href} className="text-muted-foreground/60 hover:text-muted-foreground text-sm transition-colors">{label}</Link>
             ))}
           </div>

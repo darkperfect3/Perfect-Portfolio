@@ -3,7 +3,7 @@ import { useClerk, useUser } from "@clerk/react";
 import { LayoutDashboard, User, FolderGit2, CalendarRange, Inbox, Bot, LogOut, ChevronLeft, Menu, ShieldAlert, Sparkles, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useListSecurityAlerts, useGetAiDashboardSummary, getGetAiDashboardSummaryQueryKey } from "@workspace/api-client-react";
+import { useListSecurityAlerts, useGetAiDashboardSummary, getGetAiDashboardSummaryQueryKey, getListSecurityAlertsQueryKey } from "@workspace/api-client-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import logo from "@/assets/logo.png";
 
@@ -14,7 +14,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   const { signOut } = useClerk();
   const { user, isLoaded } = useUser();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const { data: securityAlerts } = useListSecurityAlerts({ query: { enabled: isLoaded && Boolean(user) } });
+  const { data: securityAlerts } = useListSecurityAlerts({ query: { enabled: isLoaded && Boolean(user), queryKey: getListSecurityAlertsQueryKey() } });
   const alertCount = securityAlerts?.length ?? 0;
 
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);

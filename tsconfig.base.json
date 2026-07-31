@@ -20,6 +20,10 @@
     "skipLibCheck": true,
     "target": "es2022",
     "types": [],
-    "customConditions": ["workspace"]
+    "customConditions": ["workspace"],
+    "baseUrl": ".",
+    "paths": {
+      "@workspace/*": ["lib/*/src", "lib/*/dist"]
+    }
   }
 }

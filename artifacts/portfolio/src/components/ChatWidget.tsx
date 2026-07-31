@@ -75,9 +75,12 @@ export function ChatWidget() {
   const sendMessage = useSendChatMessage();
 
   useEffect(() => {
-    if (history && history.length > 0 && !hasLoadedHistory.current) {
+      if (history && history.length > 0 && !hasLoadedHistory.current) {
       hasLoadedHistory.current = true;
-      setMessages([GREETING, ...history.map((m) => ({ role: m.role, content: m.content }))]);
+      setMessages([
+        GREETING,
+        ...history.map((m: { role: "user" | "assistant"; content: string }) => ({ role: m.role, content: m.content })),
+      ]);
     }
   }, [history]);
 
