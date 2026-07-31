@@ -19,6 +19,9 @@ export default function Home() {
   const { data: profile, isLoading: profileLoading } = useGetProfile();
   const { data: featuredProjects, isLoading: projectsLoading } = useGetFeaturedProjects();
 
+  const featuredProjectsList = Array.isArray(featuredProjects) ? featuredProjects : [];
+  const hasFeaturedProjects = featuredProjectsList.length > 0;
+
   if (profileLoading || projectsLoading) {
     return (
       <div className="min-h-[80vh] flex items-center justify-center">
@@ -40,70 +43,88 @@ export default function Home() {
         </div>
 
         <div className="max-w-7xl mx-auto px-5 sm:px-6 relative z-10 w-full">
-          <motion.div variants={container} initial="hidden" animate="visible" className="max-w-3xl">
+          <motion.div variants={container} initial="hidden" animate="visible" className="flex items-start gap-10">
+            <div className="max-w-3xl flex-1">
 
-            {/* Status badge */}
-            <motion.div variants={item} className="inline-flex items-center gap-2 mb-7 px-3 py-1.5 rounded-full border border-primary/20 bg-primary/5 text-xs font-medium text-primary">
-              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-              {profile?.title || "Creative Developer"}
-              {profile?.location && (
-                <>
-                  <span className="w-px h-3 bg-primary/20" />
-                  <MapPin className="w-3 h-3 text-primary/70" />
-                  <span className="text-primary/70">{profile.location}</span>
-                </>
-              )}
-            </motion.div>
+              {/* Status badge */}
+              <motion.div variants={item} className="inline-flex items-center gap-2 mb-7 px-3 py-1.5 rounded-full border border-primary/20 bg-primary/5 text-xs font-medium text-primary">
+                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                {profile?.title || "Creative Developer"}
+                {profile?.location && (
+                  <>
+                    <span className="w-px h-3 bg-primary/20" />
+                    <MapPin className="w-3 h-3 text-primary/70" />
+                    <span className="text-primary/70">{profile.location}</span>
+                  </>
+                )}
+              </motion.div>
 
-            {/* Heading */}
-            <motion.h1
-              variants={item}
-              className="text-[2.75rem] sm:text-5xl md:text-7xl lg:text-8xl font-heading font-bold tracking-tighter leading-[1.05] mb-8 break-words"
-            >
-              {profile?.name ? (
-                <>
-                  I'm{" "}
-                  <span className="relative">
-                    <span className="text-transparent bg-clip-text" style={{ backgroundImage: "linear-gradient(135deg, hsl(var(--foreground)), hsl(var(--primary)))" }}>
-                      {profile.name.split(" ")[0]}.
+              {/* Heading */}
+              <motion.h1
+                variants={item}
+                className="text-[2.75rem] sm:text-5xl md:text-7xl lg:text-8xl font-heading font-bold tracking-tighter leading-[1.05] mb-8 break-words"
+              >
+                {profile?.name ? (
+                  <>
+                    I'm{" "}
+                    <span className="relative">
+                      <span className="text-transparent bg-clip-text" style={{ backgroundImage: "linear-gradient(135deg, hsl(var(--foreground)), hsl(var(--primary)))" }}>
+                        {profile.name.split(" ")[0]}.
+                      </span>
                     </span>
-                  </span>
-                  <br />
-                  <span className="text-muted-foreground">I build digital experiences.</span>
-                </>
-              ) : (
-                <>Crafting digital<br /><span className="text-muted-foreground">experiences.</span></>
-              )}
-            </motion.h1>
-
-            <motion.p variants={item} className="text-lg md:text-xl text-muted-foreground/80 max-w-xl mb-12 leading-relaxed">
-              {profile?.bio || "A multidisciplinary developer focused on creating clean, intuitive, and performant web applications."}
-            </motion.p>
-
-            <motion.div variants={item} className="flex flex-wrap items-center gap-4">
-              <Link href="/projects">
-                <Button size="lg" className="h-13 px-8 text-sm rounded-full gap-2 font-semibold shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-shadow">
-                  View Work <ArrowRight className="w-4 h-4" />
-                </Button>
-              </Link>
-              <Link href="/contact">
-                <Button size="lg" variant="outline" className="h-13 px-8 text-sm rounded-full border-white/10 hover:bg-white/5 hover:border-white/20">
-                  Get in Touch
-                </Button>
-              </Link>
-              <div className="flex items-center gap-2 ml-1">
-                {profile?.githubUrl && (
-                  <a href={profile.githubUrl} target="_blank" rel="noopener noreferrer"
-                    className="w-10 h-10 rounded-full border border-white/[0.08] bg-white/[0.03] flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-white/20 hover:bg-white/[0.06] transition-all duration-200">
-                    <Github className="w-4 h-4" />
-                  </a>
+                    <br />
+                    <span className="text-muted-foreground">I build digital experiences.</span>
+                  </>
+                ) : (
+                  <>Crafting digital<br /><span className="text-muted-foreground">experiences.</span></>
                 )}
-                {profile?.linkedinUrl && (
-                  <a href={profile.linkedinUrl} target="_blank" rel="noopener noreferrer"
-                    className="w-10 h-10 rounded-full border border-white/[0.08] bg-white/[0.03] flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-white/20 hover:bg-white/[0.06] transition-all duration-200">
-                    <Linkedin className="w-4 h-4" />
-                  </a>
-                )}
+              </motion.h1>
+
+              <motion.p variants={item} className="text-lg md:text-xl text-muted-foreground/80 max-w-xl mb-12 leading-relaxed">
+                {profile?.bio || "A multidisciplinary developer focused on creating clean, intuitive, and performant web applications."}
+              </motion.p>
+
+              <motion.div variants={item} className="flex flex-wrap items-center gap-4">
+                <Link href="/projects">
+                  <Button size="lg" className="h-13 px-8 text-sm rounded-full gap-2 font-semibold shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-shadow">
+                    View Work <ArrowRight className="w-4 h-4" />
+                  </Button>
+                </Link>
+                <Link href="/contact">
+                  <Button size="lg" variant="outline" className="h-13 px-8 text-sm rounded-full border-white/10 hover:bg-white/5 hover:border-white/20">
+                    Get in Touch
+                  </Button>
+                </Link>
+                <div className="flex items-center gap-2 ml-1">
+                  {profile?.githubUrl && (
+                    <a href={profile.githubUrl} target="_blank" rel="noopener noreferrer"
+                      className="w-10 h-10 rounded-full border border-white/[0.08] bg-white/[0.03] flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-white/20 hover:bg-white/[0.06] transition-all duration-200">
+                      <Github className="w-4 h-4" />
+                    </a>
+                  )}
+                  {profile?.linkedinUrl && (
+                    <a href={profile.linkedinUrl} target="_blank" rel="noopener noreferrer"
+                      className="w-10 h-10 rounded-full border border-white/[0.08] bg-white/[0.03] flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-white/20 hover:bg-white/[0.06] transition-all duration-200">
+                      <Linkedin className="w-4 h-4" />
+                    </a>
+                  )}
+                </div>
+              </motion.div>
+            </div>
+
+            {/* Right image frame - place your image at /profile-portrait.jpg in public/ */}
+            <motion.div
+              variants={item}
+              className="hidden lg:flex group flex-shrink-0 w-90 h-100 rounded-[2rem] overflow-hidden border border-white/[0.08] bg-white/[0.03] shadow-[0_28px_80px_rgba(59,130,246,0.14)] transition-transform duration-500 hover:scale-[1.04]"
+            >
+              <div className="relative w-full h-full">
+                <img
+                  src="/8E41FECF-6556-4C6E-AB54-AD7EC3F62BEC.jpg"
+                  alt={profile?.name || "Profile"}
+                  className="w-full h-full object-cover transition-transform duration-700 ease-out will-change-transform group-hover:scale-105"
+                />
+                <div className="absolute inset-0 bg-gradient-to-br from-transparent via-primary/10 to-primary/25 opacity-90 mix-blend-multiply pointer-events-none" />
+                <div className="absolute inset-0 border border-primary/15 rounded-[2rem] pointer-events-none" />
               </div>
             </motion.div>
           </motion.div>
@@ -111,7 +132,7 @@ export default function Home() {
       </section>
 
       {/* ── Featured Projects ── */}
-      {featuredProjects && featuredProjects.length > 0 && (
+      {hasFeaturedProjects && (
         <section className="py-32 relative">
           <div className="absolute inset-0 bg-gradient-to-b from-background via-secondary/10 to-background pointer-events-none" />
           <div className="max-w-7xl mx-auto px-6 relative">
@@ -130,7 +151,7 @@ export default function Home() {
             </div>
 
             <div className="grid md:grid-cols-2 gap-6 md:gap-8">
-              {featuredProjects.map((project, i) => (
+              {featuredProjectsList.map((project, i) => (
                 <motion.div
                   key={project.id}
                   initial={{ opacity: 0, y: 32 }}

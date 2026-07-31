@@ -1,7 +1,6 @@
 import { Switch, Route, useLocation, Router as WouterRouter } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { ClerkProvider, SignIn, SignUp, Show, useClerk, useUser } from "@clerk/react";
-import { publishableKeyFromHost } from "@clerk/react/internal";
 import { dark } from "@clerk/themes";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { queryClient } from "@/lib/queryClient";
@@ -28,11 +27,14 @@ import NotFound from "@/pages/not-found";
 
 const ADMIN_EMAIL = "officialperfectdev@gmail.com";
 
-const clerkPubKey = publishableKeyFromHost(
-  window.location.hostname,
-  import.meta.env.VITE_CLERK_PUBLISHABLE_KEY,
-);
-const clerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL;
+const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY?.trim();
+const rawClerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL?.trim();
+const isExplicitClerkProxyUrl =
+  rawClerkProxyUrl && rawClerkProxyUrl !== "https://your-clerk-proxy.example.com";
+// Proxy Clerk: ne passer une URL de proxy que si elle est explicitement configurée
+// (pas le placeholder). Les clés de test Clerk (pk_test_...) ne supportent PAS le proxy.
+// Le proxy est nécessaire uniquement en production avec un domaine personnalisé.
+const clerkProxyUrl = isExplicitClerkProxyUrl ? rawClerkProxyUrl : undefined;
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 function stripBase(path: string): string {
@@ -278,7 +280,7 @@ function ClerkProviderWithRoutes() {
   return (
     <ClerkProvider
       publishableKey={clerkPubKey}
-      proxyUrl={clerkProxyUrl}
+      {...(clerkProxyUrl ? { proxyUrl: clerkProxyUrl } : {})}
       appearance={clerkAppearance}
       signInUrl={`${basePath}/sign-in`}
       signUpUrl={`${basePath}/sign-up`}

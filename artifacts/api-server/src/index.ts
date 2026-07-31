@@ -1,14 +1,21 @@
-import app from "./app";
-import { logger } from "./lib/logger";
+import dotenv from "dotenv";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const rawPort = process.env["PORT"];
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const envPath = path.resolve(__dirname, "../../../.env");
 
-if (!rawPort) {
-  throw new Error(
-    "PORT environment variable is required but was not provided.",
-  );
+dotenv.config({ path: envPath });
+
+if (process.env.CLERK_SECRET_KEY?.trim() === "your-clerk-secret-key") {
+  delete process.env.CLERK_SECRET_KEY;
 }
 
+const { default: app } = await import("./app");
+const { logger } = await import("./lib/logger");
+
+const rawPort = process.env["PORT"] ?? "3000";
 const port = Number(rawPort);
 
 if (Number.isNaN(port) || port <= 0) {

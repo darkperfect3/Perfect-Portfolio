@@ -27,6 +27,7 @@ export const GetProfileResponse = zod.object({
   location: zod.string().nullish(),
   githubUrl: zod.string().nullish(),
   linkedinUrl: zod.string().nullish(),
+  whatsappUrl: zod.string().nullish(),
   cvUrl: zod.string().nullish(),
   skills: zod.array(zod.string()),
   updatedAt: zod.coerce.date(),
@@ -44,6 +45,7 @@ export const UpdateProfileBody = zod.object({
   location: zod.string().nullish(),
   githubUrl: zod.string().nullish(),
   linkedinUrl: zod.string().nullish(),
+  whatsappUrl: zod.string().nullish(),
   cvUrl: zod.string().nullish(),
   skills: zod.array(zod.string()).optional(),
 });
@@ -58,6 +60,7 @@ export const UpdateProfileResponse = zod.object({
   location: zod.string().nullish(),
   githubUrl: zod.string().nullish(),
   linkedinUrl: zod.string().nullish(),
+  whatsappUrl: zod.string().nullish(),
   cvUrl: zod.string().nullish(),
   skills: zod.array(zod.string()),
   updatedAt: zod.coerce.date(),

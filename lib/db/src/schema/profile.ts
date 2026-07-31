@@ -12,6 +12,7 @@ export const profileTable = pgTable("profile", {
   location: text("location"),
   githubUrl: text("github_url"),
   linkedinUrl: text("linkedin_url"),
+  whatsappUrl: text("whatsapp_url"),
   cvUrl: text("cv_url"),
   skills: jsonb("skills").$type<string[]>().notNull().default([]),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

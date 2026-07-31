@@ -1,71 +1,74 @@
-import { Router, Request, Response, NextFunction } from "express";
-import { getAuth } from "@clerk/express";
-import { db, contactMessagesTable, pageViewsTable, projectsTable, timelineTable, profileTable } from "@workspace/db";
-import { eq, count, countDistinct, sql, desc } from "drizzle-orm";
-import { ai } from "@workspace/integrations-gemini-ai";
+import { Router, Request, Response } from "express";
+import { requireAdmin } from "../middlewares/adminAuth";
+import {
+  contactMessagesCollection,
+  pageViewsCollection,
+  projectsCollection,
+  timelineCollection,
+  profileCollection,
+} from "@workspace/db";
 import { relayChatCompletion } from "@workspace/integrations-ai-relay";
 
 const router = Router();
 
-const requireAuth = (req: Request, res: Response, next: NextFunction): void => {
-  const auth = getAuth(req);
-  const userId = auth?.sessionClaims?.userId || auth?.userId;
-  if (!userId) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
-  next();
-};
 
 async function buildAdminContext() {
-  const [totalViewsResult] = await db.select({ count: count() }).from(pageViewsTable);
-  const [uniqueVisitorsResult] = await db.select({ count: countDistinct(pageViewsTable.visitorId) }).from(pageViewsTable);
-  const [unreadMessagesResult] = await db.select({ count: count() }).from(contactMessagesTable).where(eq(contactMessagesTable.read, false));
-  const [totalMessagesResult] = await db.select({ count: count() }).from(contactMessagesTable);
+  const totalViews = await pageViewsCollection.countDocuments();
+  const uniqueVisitors = await pageViewsCollection.distinct("visitorId", { visitorId: { $ne: null } });
+  const unreadMessages = await contactMessagesCollection.countDocuments({ read: false });
+  const totalMessages = await contactMessagesCollection.countDocuments();
 
-  const topPages = await db
-    .select({ page: pageViewsTable.page, views: count(pageViewsTable.id) })
-    .from(pageViewsTable)
-    .groupBy(pageViewsTable.page)
-    .orderBy(sql`count(${pageViewsTable.id}) desc`)
-    .limit(5);
+  const topPages = await pageViewsCollection
+    .aggregate<{ page: string; views: number }>([
+      { $group: { _id: "$page", views: { $sum: 1 } } },
+      { $sort: { views: -1 } },
+      { $limit: 5 },
+      { $project: { _id: 0, page: "$_id", views: 1 } },
+    ])
+    .toArray();
 
-  const recentViews = await db
-    .select({ page: pageViewsTable.page, visitorId: pageViewsTable.visitorId, createdAt: pageViewsTable.createdAt })
-    .from(pageViewsTable)
-    .orderBy(desc(pageViewsTable.createdAt))
-    .limit(10);
+  const recentViews = await pageViewsCollection
+    .find()
+    .sort({ createdAt: -1 })
+    .limit(10)
+    .project<{ page: string; visitorId: string | null; createdAt: Date }>({ page: 1, visitorId: 1, createdAt: 1, _id: 0 })
+    .toArray();
 
-  const recentMessages = await db
-    .select({ id: contactMessagesTable.id, name: contactMessagesTable.name, subject: contactMessagesTable.subject, content: contactMessagesTable.content, read: contactMessagesTable.read, createdAt: contactMessagesTable.createdAt })
-    .from(contactMessagesTable)
-    .orderBy(desc(contactMessagesTable.createdAt))
-    .limit(10);
+  const recentMessages = await contactMessagesCollection
+    .find()
+    .sort({ createdAt: -1 })
+    .limit(10)
+    .project<{ id: number; name: string; subject: string | null; content: string; read: boolean; createdAt: Date }>({ id: 1, name: 1, subject: 1, content: 1, read: 1, createdAt: 1, _id: 0 })
+    .toArray();
 
-  const projects = await db
-    .select({ id: projectsTable.id, title: projectsTable.title, category: projectsTable.category, featured: projectsTable.featured })
-    .from(projectsTable);
+  const projects = await projectsCollection
+    .find()
+    .project<{ id: number; title: string; category: string; featured: boolean }>({ id: 1, title: 1, category: 1, featured: 1, _id: 0 })
+    .toArray();
 
-  const timeline = await db
-    .select({ title: timelineTable.title, organization: timelineTable.organization, type: timelineTable.type })
-    .from(timelineTable);
+  const timeline = await timelineCollection
+    .find()
+    .project<{ title: string; organization: string; type: string }>({ title: 1, organization: 1, type: 1, _id: 0 })
+    .toArray();
 
-  const [profile] = await db.select().from(profileTable).limit(1);
+  const profile = await profileCollection.findOne();
 
-  const projectViewCounts = await db
-    .select({ page: pageViewsTable.page, views: count(pageViewsTable.id) })
-    .from(pageViewsTable)
-    .where(sql`${pageViewsTable.page} like '/projects/%'`)
-    .groupBy(pageViewsTable.page)
-    .orderBy(sql`count(${pageViewsTable.id}) desc`)
-    .limit(5);
+  const projectViewCounts = await pageViewsCollection
+    .aggregate([
+      { $match: { page: { $regex: "^/projects/" } } },
+      { $group: { _id: "$page", views: { $sum: 1 } } },
+      { $sort: { views: -1 } },
+      { $limit: 5 },
+      { $project: { _id: 0, page: "$_id", views: 1 } },
+    ])
+    .toArray();
 
   return {
     stats: {
-      totalViews: totalViewsResult.count,
-      uniqueVisitors: uniqueVisitorsResult.count,
-      unreadMessages: unreadMessagesResult.count,
-      totalMessages: totalMessagesResult.count,
+      totalViews,
+      uniqueVisitors: uniqueVisitors.length,
+      unreadMessages,
+      totalMessages,
       totalProjects: projects.length,
     },
     topPages,
@@ -101,7 +104,7 @@ Liste des projets: ${ctx.projects.map((p) => `${p.title} (${p.category}${p.featu
 Parcours (timeline): ${ctx.timeline.map((t) => `${t.title} @ ${t.organization} (${t.type})`).join(", ") || "aucun"}`;
 }
 
-router.post("/chat", requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.post("/chat", requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const { message, history = [] } = req.body;
     if (!message) {
@@ -119,21 +122,20 @@ Tu peux aussi aider à rédiger des descriptions de projets, des réponses aux m
 
 ${contextToPromptText(ctx)}`;
 
-    const contents = [
+    const messagesList: { role: "system" | "user" | "assistant"; content: string }[] = [
+      { role: "system", content: systemPrompt },
       ...history.map((h: { role: string; content: string }) => ({
-        role: h.role === "assistant" ? "model" : "user",
-        parts: [{ text: h.content }],
+        role: h.role === "assistant" ? ("assistant" as const) : ("user" as const),
+        content: h.content,
       })),
-      { role: "user", parts: [{ text: message }] },
+      { role: "user" as const, content: message },
     ];
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents,
-      config: { systemInstruction: systemPrompt },
-    });
+    const { content: reply = "" } = await relayChatCompletion(
+      messagesList,
+      { maxTokens: 1024 },
+    );
 
-    const reply = response.text ?? "";
     res.json({ reply });
   } catch (err) {
     req.log.error(err);
@@ -141,16 +143,15 @@ ${contextToPromptText(ctx)}`;
   }
 });
 
-router.get("/analyze-message/:id", requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.get("/analyze-message/:id", requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const id = parseInt(String(req.params.id));
-    const messages = await db.select().from(contactMessagesTable).where(eq(contactMessagesTable.id, id));
-    if (!messages[0]) {
+    const msg = await contactMessagesCollection.findOne({ id });
+    if (!msg) {
       res.status(404).json({ error: "Message not found" });
       return;
     }
 
-    const msg = messages[0];
     const prompt = `Analyze this contact message from a portfolio website visitor:
 
 From: ${msg.name} <${msg.email}>
@@ -165,14 +166,14 @@ Provide a JSON response with:
 
 Respond ONLY with valid JSON, no markdown.`;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-    });
+    const { content } = await relayChatCompletion(
+      [{ role: "user", content: prompt }],
+      { maxTokens: 512 },
+    );
 
     let analysis;
     try {
-      const text = response.text?.trim() ?? "{}";
+      const text = content.trim() || "{}";
       analysis = JSON.parse(text);
     } catch {
       analysis = {
@@ -183,10 +184,10 @@ Respond ONLY with valid JSON, no markdown.`;
       };
     }
 
-    await db
-      .update(contactMessagesTable)
-      .set({ aiSummary: analysis.summary, aiIntent: analysis.intent })
-      .where(eq(contactMessagesTable.id, id));
+    await contactMessagesCollection.updateOne(
+      { id },
+      { $set: { aiSummary: analysis.summary, aiIntent: analysis.intent } },
+    );
 
     res.json(analysis);
   } catch (err) {
@@ -195,7 +196,7 @@ Respond ONLY with valid JSON, no markdown.`;
   }
 });
 
-router.get("/dashboard-summary", requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.get("/dashboard-summary", requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const ctx = await buildAdminContext();
 
@@ -215,7 +216,7 @@ Fais un résumé clair et concis en français (5-7 phrases max) pour le proprié
   }
 });
 
-router.post("/suggest-project", requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.post("/suggest-project", requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const { title = "", description = "", category = "", technologies = "" } = req.body ?? {};
 
@@ -237,14 +238,14 @@ Réponds UNIQUEMENT avec un JSON valide (pas de markdown) au format :
   "technologies": "liste de technologies séparées par des virgules, ex: React, Node.js, PostgreSQL"
 }`;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-    });
+    const { content } = await relayChatCompletion(
+      [{ role: "user", content: prompt }],
+      { maxTokens: 512 },
+    );
 
     let suggestion;
     try {
-      const text = response.text?.trim() ?? "{}";
+      const text = content.trim() || "{}";
       suggestion = JSON.parse(text.replace(/^```json\s*/i, "").replace(/```$/, ""));
     } catch {
       res.status(502).json({ error: "AI returned an invalid response" });
@@ -258,7 +259,7 @@ Réponds UNIQUEMENT avec un JSON valide (pas de markdown) au format :
   }
 });
 
-router.post("/suggest-timeline", requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.post("/suggest-timeline", requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const { title = "", organization = "", description = "", type = "" } = req.body ?? {};
 
@@ -279,14 +280,14 @@ Réponds UNIQUEMENT avec un JSON valide (pas de markdown) au format :
   "type": "work" | "education" | "achievement"
 }`;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-    });
+    const { content } = await relayChatCompletion(
+      [{ role: "user", content: prompt }],
+      { maxTokens: 512 },
+    );
 
     let suggestion;
     try {
-      const text = response.text?.trim() ?? "{}";
+      const text = content.trim() || "{}";
       suggestion = JSON.parse(text.replace(/^```json\s*/i, "").replace(/```$/, ""));
     } catch {
       res.status(502).json({ error: "AI returned an invalid response" });

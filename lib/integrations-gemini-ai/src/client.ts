@@ -1,21 +1,30 @@
-import { GoogleGenAI } from "@google/genai";
+import { relayChatCompletion } from "@workspace/integrations-ai-relay";
 
-if (!process.env.AI_INTEGRATIONS_GEMINI_BASE_URL) {
-  throw new Error(
-    "AI_INTEGRATIONS_GEMINI_BASE_URL must be set. Did you forget to provision the Gemini AI integration?",
-  );
-}
+/**
+ * Compatibility shim: exposes a minimal `ai.models.generateContent` API
+ * that delegates to the relay chat completion (text-only). This allows
+ * existing callers to keep using the same call sites while routing
+ * completions through Mistral/Qwen/DeepSeek.
+ */
+export const ai = {
+  models: {
+    async generateContent(opts: { model?: string; contents?: any[]; config?: any }) {
+      const contents = opts.contents ?? [];
+      const messages = contents.map((c: any) => {
+        const role = c.role || "user";
+        const text = Array.isArray(c.parts)
+          ? c.parts.map((p: any) => p.text || "").join(" ")
+          : c.text || "";
+        return { role, content: text };
+      });
 
-if (!process.env.AI_INTEGRATIONS_GEMINI_API_KEY) {
-  throw new Error(
-    "AI_INTEGRATIONS_GEMINI_API_KEY must be set. Did you forget to provision the Gemini AI integration?",
-  );
-}
+      const result = await relayChatCompletion(messages, { maxTokens: 1024 });
 
-export const ai = new GoogleGenAI({
-  apiKey: process.env.AI_INTEGRATIONS_GEMINI_API_KEY,
-  httpOptions: {
-    apiVersion: "",
-    baseUrl: process.env.AI_INTEGRATIONS_GEMINI_BASE_URL,
+      // Provide a response shape similar to Gemini client minimal needs
+      return {
+        text: result.content,
+        candidates: [{ message: { content: result.content } }],
+      };
+    },
   },
-});
+};

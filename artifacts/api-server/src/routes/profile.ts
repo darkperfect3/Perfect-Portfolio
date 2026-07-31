@@ -1,57 +1,67 @@
-import { Router, Request, Response, NextFunction } from "express";
-import { getAuth } from "@clerk/express";
-import { db, profileTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { Router, Request, Response } from "express";
+import { requireAdmin } from "../middlewares/adminAuth";
+import { profileCollection, getNextSequence } from "@workspace/db";
 
 const router = Router();
 
-const requireAuth = (req: Request, res: Response, next: NextFunction): void => {
-  const auth = getAuth(req);
-  const userId = auth?.sessionClaims?.userId || auth?.userId;
-  if (!userId) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
-  next();
-};
 
 router.get("/", async (req: Request, res: Response): Promise<void> => {
   try {
-    let profiles = await db.select().from(profileTable).limit(1);
-    if (profiles.length === 0) {
-      const inserted = await db.insert(profileTable).values({
+    let profile = await profileCollection.findOne();
+    if (!profile) {
+      const id = await getNextSequence("profile");
+      const inserted = {
+        id,
+        _id: id,
         name: "Your Name",
         title: "Full Stack Developer",
         bio: "Passionate developer building great products.",
-        skills: ["React", "Node.js", "TypeScript", "PostgreSQL"],
-      }).returning();
-      profiles = inserted;
+        photoUrl: null,
+        email: null,
+        location: null,
+        githubUrl: null,
+        linkedinUrl: null,
+        whatsappUrl: null,
+        cvUrl: null,
+        skills: ["React", "Node.js", "TypeScript", "MongoDB"],
+        updatedAt: new Date(),
+      };
+      await profileCollection.insertOne(inserted);
+      profile = inserted;
     }
-    res.json(profiles[0]);
+    res.json(profile);
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Internal server error" });
   }
 });
 
-router.put("/", requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.put("/", requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const body = req.body;
-    const profiles = await db.select().from(profileTable).limit(1);
-    if (profiles.length === 0) {
-      const inserted = await db.insert(profileTable).values({
+    const profile = await profileCollection.findOne();
+    if (!profile) {
+      const id = await getNextSequence("profile");
+      const inserted = {
+        id,
+        _id: id,
         ...body,
         updatedAt: new Date(),
-      }).returning();
-      res.json(inserted[0]);
+      };
+      await profileCollection.insertOne(inserted);
+      res.json(inserted);
       return;
     }
-    const updated = await db
-      .update(profileTable)
-      .set({ ...body, updatedAt: new Date() })
-      .where(eq(profileTable.id, profiles[0].id))
-      .returning();
-    res.json(updated[0]);
+    const updated = await profileCollection.findOneAndUpdate(
+      { id: profile.id },
+      { $set: { ...body, updatedAt: new Date() } },
+      { returnDocument: "after", includeResultMetadata: false },
+    );
+    if (!updated) {
+      res.status(404).json({ error: "Profile not found" });
+      return;
+    }
+    res.json(updated);
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Internal server error" });

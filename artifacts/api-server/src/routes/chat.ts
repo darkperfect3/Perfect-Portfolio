@@ -1,6 +1,9 @@
 import { Router, Request, Response } from "express";
-import { db, conversations, messages } from "@workspace/db";
-import { eq, asc, and } from "drizzle-orm";
+import {
+  conversationsCollection,
+  messagesCollection,
+  getNextSequence,
+} from "@workspace/db";
 import { relayChatCompletion, type RelayMessage } from "@workspace/integrations-ai-relay";
 
 const router = Router();
@@ -12,41 +15,39 @@ Sois concis, chaleureux et professionnel. Si le visiteur veut contacter le propr
 Tu ne dois jamais inventer d'informations précises (chiffres, dates) que tu ne connais pas sur le propriétaire.`;
 
 async function getOrCreateConversation(visitorId: string) {
-  const existing = await db
-    .select()
-    .from(conversations)
-    .where(and(eq(conversations.visitorId, visitorId), eq(conversations.kind, "public_chat")))
-    .limit(1);
+  const existing = await conversationsCollection.findOne({ visitorId, kind: "public_chat" });
+  if (existing) return existing;
 
-  if (existing[0]) return existing[0];
+  const id = await getNextSequence("conversations");
+  const conversation = {
+    id,
+    _id: id,
+    title: `Visiteur ${visitorId.slice(0, 8)}`,
+    kind: "public_chat",
+    visitorId,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
 
-  const [created] = await db
-    .insert(conversations)
-    .values({ title: `Visiteur ${visitorId.slice(0, 8)}`, kind: "public_chat", visitorId })
-    .returning();
-
-  return created;
+  await conversationsCollection.insertOne(conversation);
+  return conversation;
 }
 
 router.get("/history/:visitorId", async (req: Request, res: Response): Promise<void> => {
   try {
     const visitorId = String(req.params.visitorId);
-    const conversation = await db
-      .select()
-      .from(conversations)
-      .where(and(eq(conversations.visitorId, visitorId), eq(conversations.kind, "public_chat")))
-      .limit(1);
+    const conversation = await conversationsCollection.findOne({ visitorId, kind: "public_chat" });
 
-    if (!conversation[0]) {
+    if (!conversation) {
       res.json([]);
       return;
     }
 
-    const history = await db
-      .select({ role: messages.role, content: messages.content, createdAt: messages.createdAt })
-      .from(messages)
-      .where(eq(messages.conversationId, conversation[0].id))
-      .orderBy(asc(messages.createdAt));
+    const history = await messagesCollection
+      .find({ conversationId: conversation.id })
+      .sort({ createdAt: 1 })
+      .project({ role: 1, content: 1, createdAt: 1, _id: 0 })
+      .toArray();
 
     res.json(history.map((m) => ({ ...m, createdAt: m.createdAt.toISOString() })));
   } catch (err) {
@@ -65,14 +66,22 @@ router.post("/message", async (req: Request, res: Response): Promise<void> => {
 
     const conversation = await getOrCreateConversation(visitorId);
 
-    const priorMessages = await db
-      .select({ role: messages.role, content: messages.content })
-      .from(messages)
-      .where(eq(messages.conversationId, conversation.id))
-      .orderBy(asc(messages.createdAt))
-      .limit(20);
+    const priorMessages = await messagesCollection
+      .find({ conversationId: conversation.id })
+      .sort({ createdAt: 1 })
+      .project({ role: 1, content: 1, _id: 0 })
+      .limit(20)
+      .toArray();
 
-    await db.insert(messages).values({ conversationId: conversation.id, role: "user", content: message });
+    const userMessageId = await getNextSequence("messages");
+    await messagesCollection.insertOne({
+      id: userMessageId,
+      _id: userMessageId,
+      conversationId: conversation.id,
+      role: "user",
+      content: message,
+      createdAt: new Date(),
+    });
 
     const relayMessages: RelayMessage[] = [
       { role: "system", content: SYSTEM_PROMPT },
@@ -82,8 +91,20 @@ router.post("/message", async (req: Request, res: Response): Promise<void> => {
 
     const { content } = await relayChatCompletion(relayMessages, { maxTokens: 512 });
 
-    await db.insert(messages).values({ conversationId: conversation.id, role: "assistant", content });
-    await db.update(conversations).set({ updatedAt: new Date() }).where(eq(conversations.id, conversation.id));
+    const assistantMessageId = await getNextSequence("messages");
+    await messagesCollection.insertOne({
+      id: assistantMessageId,
+      _id: assistantMessageId,
+      conversationId: conversation.id,
+      role: "assistant",
+      content,
+      createdAt: new Date(),
+    });
+
+    await conversationsCollection.updateOne(
+      { id: conversation.id },
+      { $set: { updatedAt: new Date() } },
+    );
 
     res.json({ reply: content });
   } catch (err) {

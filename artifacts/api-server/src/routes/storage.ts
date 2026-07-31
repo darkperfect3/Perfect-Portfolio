@@ -1,4 +1,4 @@
-import { Router, type IRouter, type Request, type Response } from "express";
+import express, { Router, type IRouter, type Request, type Response } from "express";
 import { Readable } from "stream";
 import {
   RequestUploadUrlBody,
@@ -6,6 +6,7 @@ import {
 } from "@workspace/api-zod";
 import { ObjectStorageService, ObjectNotFoundError } from "../lib/objectStorage";
 import { ObjectPermission } from "../lib/objectAcl";
+import { requireAdmin } from "../middlewares/adminAuth";
 
 const router: IRouter = Router();
 const objectStorageService = new ObjectStorageService();
@@ -17,7 +18,7 @@ const objectStorageService = new ObjectStorageService();
  * The client sends JSON metadata (name, size, contentType) — NOT the file.
  * Then uploads the file directly to the returned presigned URL.
  */
-router.post("/storage/uploads/request-url", async (req: Request, res: Response) => {
+router.post("/storage/uploads/request-url", requireAdmin, async (req: Request, res: Response) => {
   const parsed = RequestUploadUrlBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Missing or invalid required fields" });
@@ -27,8 +28,12 @@ router.post("/storage/uploads/request-url", async (req: Request, res: Response) 
   try {
     const { name, size, contentType } = parsed.data;
 
-    const uploadURL = await objectStorageService.getObjectEntityUploadURL();
-    const objectPath = objectStorageService.normalizeObjectEntityPath(uploadURL);
+    const uploadResponse = await objectStorageService.getObjectEntityUploadURL();
+    let { uploadURL, objectPath } = uploadResponse;
+
+    if (uploadURL.startsWith("/")) {
+      uploadURL = new URL(uploadURL, `${req.protocol}://${req.get("host")}`).toString();
+    }
 
     res.json(
       RequestUploadUrlResponse.parse({
@@ -42,6 +47,39 @@ router.post("/storage/uploads/request-url", async (req: Request, res: Response) 
     res.status(500).json({ error: "Failed to generate upload URL" });
   }
 });
+
+const localUploadMiddleware = express.raw({ type: "*/*", limit: "100mb" });
+router.put(
+  "/storage/local-uploads/:objectId",
+  localUploadMiddleware,
+  async (req: Request, res: Response) => {
+    try {
+      const objectId = Array.isArray(req.params.objectId)
+        ? req.params.objectId[0]
+        : req.params.objectId;
+      if (typeof objectId !== "string" || objectId.length === 0) {
+        res.status(400).json({ error: "Missing object id" });
+        return;
+      }
+
+      const contentType = String(req.get("content-type") || "application/octet-stream");
+      const body = req.body;
+      const rawBody = Buffer.isBuffer(body)
+        ? body
+        : Buffer.from(body as ArrayBufferLike);
+      if (rawBody.length === 0) {
+        res.status(400).json({ error: "Missing upload body" });
+        return;
+      }
+
+      await objectStorageService.saveLocalObjectFromBuffer(objectId, contentType, rawBody);
+      res.status(200).json({ objectPath: `/objects/${objectId}` });
+    } catch (error) {
+      req.log.error({ err: error }, "Error saving local upload");
+      res.status(500).json({ error: "Failed to save upload" });
+    }
+  }
+);
 
 /**
  * GET /storage/public-objects/*

@@ -1,29 +1,24 @@
-import { Router, Request, Response, NextFunction } from "express";
-import { getAuth } from "@clerk/express";
-import { db, contactMessagesTable } from "@workspace/db";
-import { eq, desc } from "drizzle-orm";
+import { Router, Request, Response } from "express";
+import { requireAdmin } from "../middlewares/adminAuth";
+import { contactMessagesCollection, getNextSequence } from "@workspace/db";
 
 const router = Router();
 
-const requireAuth = (req: Request, res: Response, next: NextFunction): void => {
-  const auth = getAuth(req);
-  const userId = auth?.sessionClaims?.userId || auth?.userId;
-  if (!userId) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
-  next();
-};
 
-router.get("/", requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.get("/", requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    let query = db.select().from(contactMessagesTable).$dynamic();
+    const filter: Record<string, unknown> = {};
     if (req.query.read === "true") {
-      query = query.where(eq(contactMessagesTable.read, true));
+      filter.read = true;
     } else if (req.query.read === "false") {
-      query = query.where(eq(contactMessagesTable.read, false));
+      filter.read = false;
     }
-    const msgs = await query.orderBy(desc(contactMessagesTable.createdAt));
+
+    const msgs = await contactMessagesCollection
+      .find(filter)
+      .sort({ createdAt: -1 })
+      .toArray();
+
     res.json(msgs);
   } catch (err) {
     req.log.error(err);
@@ -38,32 +33,44 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
       res.status(400).json({ error: "Missing required fields" });
       return;
     }
-    const inserted = await db.insert(contactMessagesTable).values({
+
+    const id = await getNextSequence("contact_messages");
+    const inserted = {
+      id,
+      _id: id,
       name,
       email,
       subject: subject || null,
       content,
-    }).returning();
-    res.status(201).json(inserted[0]);
+      read: false,
+      aiSummary: null,
+      aiIntent: null,
+      createdAt: new Date(),
+    };
+
+    await contactMessagesCollection.insertOne(inserted);
+    res.status(201).json(inserted);
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Internal server error" });
   }
 });
 
-router.patch("/:id/read", requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.patch("/:id/read", requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const id = parseInt(String(req.params.id));
-    const updated = await db
-      .update(contactMessagesTable)
-      .set({ read: true })
-      .where(eq(contactMessagesTable.id, id))
-      .returning();
-    if (!updated[0]) {
+    const updated = await contactMessagesCollection.findOneAndUpdate(
+      { id },
+      { $set: { read: true } },
+      { returnDocument: "after", includeResultMetadata: false },
+    );
+
+    if (!updated) {
       res.status(404).json({ error: "Not found" });
       return;
     }
-    res.json(updated[0]);
+
+    res.json(updated);
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Internal server error" });

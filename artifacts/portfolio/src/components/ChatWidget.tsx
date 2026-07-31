@@ -3,22 +3,13 @@ import { motion, AnimatePresence, useMotionValue, animate } from "framer-motion"
 import { X, Send, Sparkles } from "lucide-react";
 import { useSendChatMessage, useGetChatHistory } from "@workspace/api-client-react";
 import logo from "@/assets/logo.png";
+import { getVisitorId } from "@/lib/visitor";
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
-const VISITOR_ID_KEY = "perfectdev_visitor_id";
 const POSITION_KEY = "perfectdev_chat_button_pos";
 const BUTTON_SIZE = 60;
 const MARGIN = 14;
-
-function getVisitorId(): string {
-  let id = localStorage.getItem(VISITOR_ID_KEY);
-  if (!id) {
-    id = crypto.randomUUID();
-    localStorage.setItem(VISITOR_ID_KEY, id);
-  }
-  return id;
-}
 
 function getDefaultPosition() {
   return {

@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: attachment-manager-backend
+    env: node
+    plan: starter
+    buildCommand: pnpm --filter @workspace/api-server run build
+    startCommand: pnpm --filter @workspace/api-server run start
+    envVars:
+      - key: PORT
+        value: 3000
+      - key: NODE_ENV
+        value: production
+      - key: USE_LOCAL_OBJECT_STORAGE
+        value: "false"
+      - key: LOG_LEVEL
+        value: info

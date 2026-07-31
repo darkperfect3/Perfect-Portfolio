@@ -4,10 +4,11 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import { Save, User, Globe, Code2 } from "lucide-react";
+import { Save, User, Globe, Code2, Upload, Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useUpload } from "@workspace/object-storage-web";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -20,6 +21,7 @@ const profileSchema = z.object({
   location: z.string().optional(),
   githubUrl: z.string().url().optional().or(z.literal("")),
   linkedinUrl: z.string().url().optional().or(z.literal("")),
+  whatsappUrl: z.string().url().optional().or(z.literal("")),
   cvUrl: z.string().url().optional().or(z.literal("")),
   skills: z.string(),
 });
@@ -46,11 +48,39 @@ export default function AdminProfile() {
   const updateProfile = useUpdateProfile();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
-    defaultValues: { name: "", title: "", bio: "", email: "", location: "", githubUrl: "", linkedinUrl: "", cvUrl: "", skills: "" },
+    defaultValues: { name: "", title: "", bio: "", email: "", location: "", githubUrl: "", linkedinUrl: "", whatsappUrl: "", cvUrl: "", skills: "" },
   });
+
+  const { uploadFile, isUploading } = useUpload({
+    onSuccess: (response) => {
+      const uploadedUrl = `${window.location.origin}/api/storage${response.objectPath}`;
+      form.setValue("cvUrl", uploadedUrl, { shouldDirty: true, shouldValidate: true });
+      toast({ title: "CV téléversé", description: "Le CV est prêt à être enregistré." });
+    },
+    onError: (error) => {
+      toast({ title: "Erreur d'upload", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const handleCvFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    if (file.type !== "application/pdf") {
+      toast({ title: "Fichier invalide", description: "Veuillez sélectionner un fichier PDF.", variant: "destructive" });
+      event.target.value = "";
+      return;
+    }
+
+    await uploadFile(file);
+    event.target.value = "";
+  };
 
   useEffect(() => {
     if (profile) {
@@ -58,7 +88,7 @@ export default function AdminProfile() {
         name: profile.name, title: profile.title, bio: profile.bio,
         email: profile.email || "", location: profile.location || "",
         githubUrl: profile.githubUrl || "", linkedinUrl: profile.linkedinUrl || "",
-        cvUrl: profile.cvUrl || "", skills: profile.skills.join(", "),
+        whatsappUrl: profile.whatsappUrl || "", cvUrl: profile.cvUrl || "", skills: profile.skills.join(", "),
       });
     }
   }, [profile, form]);
@@ -68,8 +98,12 @@ export default function AdminProfile() {
       data: {
         ...data,
         skills: data.skills.split(",").map(s => s.trim()).filter(Boolean),
-        email: data.email || null, location: data.location || null,
-        githubUrl: data.githubUrl || null, linkedinUrl: data.linkedinUrl || null, cvUrl: data.cvUrl || null,
+        email: data.email || null,
+        location: data.location || null,
+        githubUrl: data.githubUrl || null,
+        linkedinUrl: data.linkedinUrl || null,
+        whatsappUrl: data.whatsappUrl || null,
+        cvUrl: data.cvUrl || null,
       }
     }, {
       onSuccess: (updated) => {
@@ -165,13 +199,58 @@ export default function AdminProfile() {
                   </FormItem>
                 )} />
               </div>
-              <FormField control={form.control} name="cvUrl" render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-xs text-muted-foreground/50 uppercase tracking-wider">Resume / CV URL</FormLabel>
-                  <FormControl><Input type="url" placeholder="https://..." {...field} className={inputClass} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )} />
+              <div className="grid md:grid-cols-2 gap-5">
+                <FormField control={form.control} name="whatsappUrl" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-xs text-muted-foreground/50 uppercase tracking-wider">WhatsApp URL</FormLabel>
+                    <FormControl><Input type="url" placeholder="https://wa.me/..." {...field} className={inputClass} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField control={form.control} name="cvUrl" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-xs text-muted-foreground/50 uppercase tracking-wider">Resume / CV</FormLabel>
+                    <FormControl>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="application/pdf"
+                        hidden
+                        onChange={handleCvFileChange}
+                      />
+                    </FormControl>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        disabled={isUploading}
+                        onClick={() => fileInputRef.current?.click()}
+                        className="gap-2 rounded-xl px-4 py-3 h-11"
+                      >
+                        {isUploading ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : field.value ? (
+                          <Check className="w-4 h-4" />
+                        ) : (
+                          <Upload className="w-4 h-4" />
+                        )}
+                        {field.value ? "Changer le CV" : "Téléverser le CV"}
+                      </Button>
+                      {field.value && (
+                        <a
+                          href={field.value}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-primary underline"
+                        >
+                          Voir le CV
+                        </a>
+                      )}
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+              </div>
             </div>
           </SectionCard>
 

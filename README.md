@@ -12,25 +12,27 @@ Premium professional portfolio platform built on a pnpm workspace monorepo. Feat
 - **TypeScript version**: 5.9
 - **Frontend**: React + Vite + TailwindCSS v4 (artifact: `artifacts/portfolio`, preview: `/`)
 - **API framework**: Express 5 (artifact: `artifacts/api-server`, preview: `/api`)
-- **Database**: PostgreSQL + Drizzle ORM
-- **Auth**: Clerk (Replit-managed, proxy middleware in api-server)
+- **Database**: MongoDB (native driver)
+- **Auth**: Clerk
 - **AI**: Relay AI using Mistral, Qwen and DeepSeek (`lib/integrations-ai-relay`)
-- **Validation**: Zod (`zod/v4`), `drizzle-zod`
+- **Validation**: Zod (`zod/v4`)
 - **API codegen**: Orval (from OpenAPI spec in `lib/api-spec/openapi.yaml`)
-- **Build**: esbuild (CJS bundle for api-server)
+- **Build**: esbuild (ESM bundle output for api-server)
 
 ## Architecture
 
 ```
 artifacts/
-  api-server/       Express API, Clerk proxy middleware, Gemini AI routes
+  api-server/       Express API, Clerk proxy middleware, object storage support
   portfolio/        React+Vite frontend (public + admin)
 lib/
-  db/               Drizzle schema + migrations
+  db/               MongoDB connection + collection models
   api-spec/         OpenAPI spec + orval codegen config
-  api-client/       Generated React Query hooks (from orval)
-  api-zod/          Generated Zod schemas (from orval)
-  integrations-gemini-ai/  Gemini AI integration helpers
+  api-client-react/ Generated React Query hooks + API client utilities
+  api-zod/          Generated Zod schemas and API types
+  integrations-ai-relay/  LLM relay and image proxy helpers
+  integrations-gemini-ai/ Gemini-compatible AI helper utilities
+  object-storage-web/     Uppy-based browser upload components
 ```
 
 ## Public Pages
@@ -83,13 +85,32 @@ lib/
 
 ## Environment Variables
 
-- `CLERK_PUBLISHABLE_KEY` — auto-set by Replit Clerk integration
-- `CLERK_SECRET_KEY` — auto-set by Replit Clerk integration
-- `CLERK_PROXY_URL` — auto-set in production by Replit
-- `DATABASE_URL` — PostgreSQL connection string
-- `SESSION_SECRET` — stored in Replit secrets
-- `AI_INTEGRATIONS_GEMINI_BASE_URL` — Replit Gemini AI proxy
-- `AI_INTEGRATIONS_GEMINI_API_KEY` — Replit Gemini AI key
+Backend
+- `CLERK_SECRET_KEY` — Clerk secret API key
+- `MONGODB_URI` — MongoDB connection string
+- `GOOGLE_APPLICATION_CREDENTIALS` — path to Google Cloud service account JSON (optional)
+- `GOOGLE_CLOUD_PROJECT` / `GCLOUD_PROJECT` / `GOOGLE_PROJECT_ID` — Google project ID for cloud storage
+- `GOOGLE_CLOUD_KEYFILE_JSON` — alternative JSON credentials payload
+- `USE_LOCAL_OBJECT_STORAGE` — `true` or `false` (defaults to `false`)
+- `LOG_LEVEL` — `info`, `debug`, etc.
+- `PORT` — backend port (default: `3000`)
+
+Frontend
+- `VITE_CLERK_PUBLISHABLE_KEY` — Clerk publishable key
+- `VITE_CLERK_PROXY_URL` — optional Clerk proxy URL
+
+## Deployment
+
+### Frontend (Netlify)
+- Build command: `pnpm --filter @workspace/portfolio run build`
+- Publish directory: `artifacts/portfolio/dist/public`
+- `netlify.toml` is included at repository root
+
+### Backend (Render)
+- `render.yaml` is included at repository root
+- Build command: `pnpm --filter @workspace/api-server run build`
+- Start command: `pnpm --filter @workspace/api-server run start`
+- Required environment variables: `CLERK_SECRET_KEY`, `MONGODB_URI`, `LOG_LEVEL`, `USE_LOCAL_OBJECT_STORAGE`
 
 ## Design
 

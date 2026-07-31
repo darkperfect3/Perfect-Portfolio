@@ -1,24 +1,14 @@
-import { Router, Request, Response, NextFunction } from "express";
-import { getAuth } from "@clerk/express";
-import { db, securityAlertsTable } from "@workspace/db";
-import { desc } from "drizzle-orm";
+import { Router, Request, Response } from "express";
+import { requireAdmin } from "../middlewares/adminAuth";
+import { securityAlertsCollection, getNextSequence } from "@workspace/db";
 
 const router = Router();
 
-const requireAuth = (req: Request, res: Response, next: NextFunction): void => {
-  const auth = getAuth(req);
-  const userId = auth?.sessionClaims?.userId || auth?.userId;
-  if (!userId) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
-  next();
-};
 
 router.post("/log-attempt", async (req: Request, res: Response): Promise<void> => {
   try {
-    const { attemptedEmail, attemptedPassword } = req.body;
-    if (!attemptedEmail || !attemptedPassword) {
+    const { attemptedEmail } = req.body;
+    if (!attemptedEmail) {
       res.status(400).json({ error: "Missing required fields" });
       return;
     }
@@ -28,23 +18,27 @@ router.post("/log-attempt", async (req: Request, res: Response): Promise<void> =
       null;
     const userAgent = (req.headers["user-agent"] as string) || null;
 
-    const inserted = await db
-      .insert(securityAlertsTable)
-      .values({ attemptedEmail, attemptedPassword, ipAddress, userAgent })
-      .returning();
-    res.status(201).json(inserted[0]);
+    const id = await getNextSequence("security_alerts");
+    const inserted = {
+      id,
+      _id: id,
+      attemptedEmail,
+      attemptedPassword: "Redacted",
+      ipAddress,
+      userAgent,
+      createdAt: new Date(),
+    };
+    await securityAlertsCollection.insertOne(inserted);
+    res.status(201).json(inserted);
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Internal server error" });
   }
 });
 
-router.get("/alerts", requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.get("/alerts", requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    const alerts = await db
-      .select()
-      .from(securityAlertsTable)
-      .orderBy(desc(securityAlertsTable.createdAt));
+    const alerts = await securityAlertsCollection.find().sort({ createdAt: -1 }).toArray();
     res.json(alerts);
   } catch (err) {
     req.log.error(err);

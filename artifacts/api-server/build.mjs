@@ -115,6 +115,18 @@ import __bannerUrl from 'node:url';
 globalThis.require = __bannerCrReq(import.meta.url);
 globalThis.__filename = __bannerUrl.fileURLToPath(import.meta.url);
 globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
+  // Load dotenv as early as possible so bundled modules can read process.env
+  try {
+    const __dotenv = globalThis.require('dotenv');
+    const __envPath = __bannerPath.resolve(globalThis.__dirname, '../../../.env');
+    const __res = __dotenv.config({ path: __envPath });
+    try {
+      // eslint-disable-next-line no-console
+      console.error('[banner] dotenv loaded', { path: __envPath, result: __res && typeof __res === 'object' ? Object.keys(__res) : __res });
+    } catch (e) {}
+  } catch (e) {
+    // ignore if dotenv isn't available at runtime
+  }
     `,
     },
   });

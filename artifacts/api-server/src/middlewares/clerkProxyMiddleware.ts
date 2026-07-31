@@ -53,24 +53,28 @@ export function getClerkProxyHost(req: {
 }
 
 export function clerkProxyMiddleware(): RequestHandler {
-  // Only run proxy in production — Clerk proxying doesn't work for dev instances
-  if (process.env.NODE_ENV !== "production") {
-    return (_req, _res, next) => next();
-  }
-
   const secretKey = process.env.CLERK_SECRET_KEY;
   if (!secretKey) {
     return (_req, _res, next) => next();
   }
 
+  // Enable Clerk proxy through the backend when a secret key is configured.
+  // This allows local dev to route /api/__clerk through the running API server,
+  // and production to do the same when frontend and backend share the same origin.
+
   return createProxyMiddleware({
     target: CLERK_FAPI,
     changeOrigin: true,
-    pathRewrite: (path: string) =>
-      path.replace(new RegExp(`^${CLERK_PROXY_PATH}`), ""),
+    pathRewrite: (path: string, req) => {
+      const originalPath = (req as { originalUrl?: string }).originalUrl ?? path;
+      return originalPath.replace(new RegExp(`^${CLERK_PROXY_PATH}`), "");
+    },
     on: {
       proxyReq: (proxyReq, req) => {
-        const protocol = req.headers["x-forwarded-proto"] || "https";
+        const forwardedProto = req.headers["x-forwarded-proto"];
+        const protocol = typeof forwardedProto === "string" && forwardedProto
+          ? forwardedProto.split(",")[0].trim()
+          : req.protocol || "https";
         const host = getClerkProxyHost(req) || "";
         const proxyUrl = `${protocol}://${host}${CLERK_PROXY_PATH}`;
 

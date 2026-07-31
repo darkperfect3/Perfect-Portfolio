@@ -1,0 +1,9 @@
+[build]
+  command = "pnpm --filter @workspace/portfolio run build"
+  publish = "artifacts/portfolio/dist/public"
+  node_version = "20"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

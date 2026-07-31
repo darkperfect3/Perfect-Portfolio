@@ -12,9 +12,9 @@ const SUMMARY_SESSION_KEY = "admin-ai-summary-shown";
 export function AdminLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const { signOut } = useClerk();
-  const { user } = useUser();
+  const { user, isLoaded } = useUser();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const { data: securityAlerts } = useListSecurityAlerts();
+  const { data: securityAlerts } = useListSecurityAlerts({ query: { enabled: isLoaded && Boolean(user) } });
   const alertCount = securityAlerts?.length ?? 0;
 
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);

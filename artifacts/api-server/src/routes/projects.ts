@@ -1,28 +1,13 @@
-import { Router, Request, Response, NextFunction } from "express";
-import { getAuth } from "@clerk/express";
-import { db, projectsTable } from "@workspace/db";
-import { eq, and, desc } from "drizzle-orm";
-import { sql } from "drizzle-orm";
+import { Router, Request, Response } from "express";
+import { requireAdmin } from "../middlewares/adminAuth";
+import { projectsCollection, getNextSequence } from "@workspace/db";
 
 const router = Router();
 
-const requireAuth = (req: Request, res: Response, next: NextFunction): void => {
-  const auth = getAuth(req);
-  const userId = auth?.sessionClaims?.userId || auth?.userId;
-  if (!userId) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
-  next();
-};
 
 router.get("/featured", async (req: Request, res: Response): Promise<void> => {
   try {
-    const projects = await db
-      .select()
-      .from(projectsTable)
-      .where(eq(projectsTable.featured, true))
-      .orderBy(projectsTable.order);
+    const projects = await projectsCollection.find({ featured: true }).sort({ order: 1 }).toArray();
     res.json(projects);
   } catch (err) {
     req.log.error(err);
@@ -32,18 +17,15 @@ router.get("/featured", async (req: Request, res: Response): Promise<void> => {
 
 router.get("/", async (req: Request, res: Response): Promise<void> => {
   try {
-    let query = db.select().from(projectsTable).$dynamic();
-    const conditions = [];
+    const filter: Record<string, unknown> = {};
     if (req.query.featured === "true") {
-      conditions.push(eq(projectsTable.featured, true));
+      filter.featured = true;
     }
     if (req.query.category) {
-      conditions.push(eq(projectsTable.category, req.query.category as string));
+      filter.category = String(req.query.category);
     }
-    if (conditions.length > 0) {
-      query = query.where(and(...conditions));
-    }
-    const projects = await query.orderBy(projectsTable.order);
+
+    const projects = await projectsCollection.find(filter).sort({ order: 1 }).toArray();
     res.json(projects);
   } catch (err) {
     req.log.error(err);
@@ -51,10 +33,20 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
   }
 });
 
-router.post("/", requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.post("/", requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    const inserted = await db.insert(projectsTable).values(req.body).returning();
-    res.status(201).json(inserted[0]);
+    const id = await getNextSequence("projects");
+    const inserted = {
+      id,
+      _id: id,
+      createdAt: new Date(),
+      featured: req.body.featured ?? false,
+      order: req.body.order ?? 0,
+      technologies: Array.isArray(req.body.technologies) ? req.body.technologies : [],
+      ...req.body,
+    };
+    await projectsCollection.insertOne(inserted);
+    res.status(201).json(inserted);
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Internal server error" });
@@ -64,37 +56,41 @@ router.post("/", requireAuth, async (req: Request, res: Response): Promise<void>
 router.get("/:id", async (req: Request, res: Response): Promise<void> => {
   try {
     const id = parseInt(String(req.params.id));
-    const projects = await db.select().from(projectsTable).where(eq(projectsTable.id, id));
-    if (!projects[0]) {
+    const project = await projectsCollection.findOne({ id });
+    if (!project) {
       res.status(404).json({ error: "Not found" });
       return;
     }
-    res.json(projects[0]);
+    res.json(project);
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Internal server error" });
   }
 });
 
-router.put("/:id", requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.put("/:id", requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const id = parseInt(String(req.params.id));
-    const updated = await db.update(projectsTable).set(req.body).where(eq(projectsTable.id, id)).returning();
-    if (!updated[0]) {
+    const updated = await projectsCollection.findOneAndUpdate(
+      { id },
+      { $set: req.body },
+      { returnDocument: "after", includeResultMetadata: false },
+    );
+    if (!updated) {
       res.status(404).json({ error: "Not found" });
       return;
     }
-    res.json(updated[0]);
+    res.json(updated);
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Internal server error" });
   }
 });
 
-router.delete("/:id", requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.delete("/:id", requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const id = parseInt(String(req.params.id));
-    await db.delete(projectsTable).where(eq(projectsTable.id, id));
+    await projectsCollection.deleteOne({ id });
     res.status(204).send();
   } catch (err) {
     req.log.error(err);

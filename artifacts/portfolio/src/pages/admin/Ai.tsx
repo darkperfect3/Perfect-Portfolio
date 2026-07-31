@@ -74,7 +74,7 @@ export default function AdminAi() {
             {isSummarizing ? "Analyse…" : "Résumé du dashboard"}
           </button>
         </div>
-        <p className="text-sm text-muted-foreground/60 ml-11">Chat with Gemini about your portfolio.</p>
+        <p className="text-sm text-muted-foreground/60 ml-11">Chat with the AI assistant about your portfolio.</p>
       </div>
 
       <div className="flex-1 flex flex-col rounded-3xl border border-white/[0.07] overflow-hidden shadow-2xl shadow-black/30 min-h-0"

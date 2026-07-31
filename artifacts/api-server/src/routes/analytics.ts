@@ -1,19 +1,9 @@
-import { Router, Request, Response, NextFunction } from "express";
-import { getAuth } from "@clerk/express";
-import { db, pageViewsTable, contactMessagesTable, projectsTable } from "@workspace/db";
-import { eq, count, countDistinct, sql } from "drizzle-orm";
+import { Router, Request, Response } from "express";
+import { requireAdmin } from "../middlewares/adminAuth";
+import { getNextSequence, pageViewsCollection, contactMessagesCollection, projectsCollection } from "@workspace/db";
 
 const router = Router();
 
-const requireAuth = (req: Request, res: Response, next: NextFunction): void => {
-  const auth = getAuth(req);
-  const userId = auth?.sessionClaims?.userId || auth?.userId;
-  if (!userId) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
-  next();
-};
 
 router.post("/track", async (req: Request, res: Response): Promise<void> => {
   try {
@@ -22,8 +12,19 @@ router.post("/track", async (req: Request, res: Response): Promise<void> => {
       res.status(400).json({ error: "page is required" });
       return;
     }
+
     const visitorId = req.headers["x-visitor-id"] as string | undefined;
-    await db.insert(pageViewsTable).values({ page, referrer: referrer || null, visitorId: visitorId || null });
+    const id = await getNextSequence("page_views");
+
+    await pageViewsCollection.insertOne({
+      id,
+      _id: id,
+      page,
+      referrer: referrer || null,
+      visitorId: visitorId || null,
+      createdAt: new Date(),
+    });
+
     res.json({ ok: true });
   } catch (err) {
     req.log.error(err);
@@ -31,37 +32,44 @@ router.post("/track", async (req: Request, res: Response): Promise<void> => {
   }
 });
 
-router.get("/dashboard", requireAuth, async (req: Request, res: Response): Promise<void> => {
+router.get("/dashboard", requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    const [totalViewsResult] = await db.select({ count: count() }).from(pageViewsTable);
-    const [uniqueVisitorsResult] = await db.select({ count: countDistinct(pageViewsTable.visitorId) }).from(pageViewsTable);
-    const [unreadMessagesResult] = await db.select({ count: count() }).from(contactMessagesTable).where(eq(contactMessagesTable.read, false));
-    const [totalMessagesResult] = await db.select({ count: count() }).from(contactMessagesTable);
-    const [totalProjectsResult] = await db.select({ count: count() }).from(projectsTable);
+    const totalViews = await pageViewsCollection.countDocuments();
+    const uniqueVisitors = await pageViewsCollection.distinct("visitorId", { visitorId: { $ne: null } });
+    const unreadMessages = await contactMessagesCollection.countDocuments({ read: false });
+    const totalMessages = await contactMessagesCollection.countDocuments();
+    const totalProjects = await projectsCollection.countDocuments();
 
-    const topPages = await db
-      .select({ page: pageViewsTable.page, views: count(pageViewsTable.id) })
-      .from(pageViewsTable)
-      .groupBy(pageViewsTable.page)
-      .orderBy(sql`count(${pageViewsTable.id}) desc`)
-      .limit(5);
+    const topPages = await pageViewsCollection
+      .aggregate([
+        { $group: { _id: "$page", views: { $sum: 1 } } },
+        { $sort: { views: -1 } },
+        { $limit: 5 },
+        { $project: { _id: 0, page: "$_id", views: 1 } },
+      ])
+      .toArray();
 
-    const viewsByDay = await db
-      .select({
-        date: sql<string>`DATE(${pageViewsTable.createdAt})`,
-        views: count(pageViewsTable.id),
-      })
-      .from(pageViewsTable)
-      .groupBy(sql`DATE(${pageViewsTable.createdAt})`)
-      .orderBy(sql`DATE(${pageViewsTable.createdAt}) asc`)
-      .limit(30);
+    const viewsByDay = await pageViewsCollection
+      .aggregate([
+        {
+          $group: {
+            _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+            views: { $sum: 1 },
+          },
+        },
+        { $sort: { _id: -1 } },
+        { $limit: 30 },
+        { $sort: { _id: 1 } },
+        { $project: { _id: 0, date: "$_id", views: 1 } },
+      ])
+      .toArray();
 
     res.json({
-      totalViews: totalViewsResult.count,
-      uniqueVisitors: uniqueVisitorsResult.count,
-      unreadMessages: unreadMessagesResult.count,
-      totalMessages: totalMessagesResult.count,
-      totalProjects: totalProjectsResult.count,
+      totalViews,
+      uniqueVisitors: uniqueVisitors.length,
+      unreadMessages,
+      totalMessages,
+      totalProjects,
       topPages,
       viewsByDay,
     });

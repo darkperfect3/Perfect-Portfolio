@@ -1,10 +1,12 @@
 import { useListSecurityAlerts } from "@workspace/api-client-react";
+import { useUser } from "@clerk/react";
 import { format, parseISO } from "date-fns";
 import { ShieldAlert, ShieldX, ShieldCheck, Monitor, Mail, KeyRound, Clock } from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function AdminSecurityAlerts() {
-  const { data: alerts, isLoading } = useListSecurityAlerts();
+  const { user, isLoaded } = useUser();
+  const { data: alerts, isLoading } = useListSecurityAlerts({ query: { enabled: isLoaded && Boolean(user) } });
 
   return (
     <div className="space-y-8 pb-10 pt-6">

@@ -1,17 +1,20 @@
 import { Link, useLocation } from "wouter";
 import { Show } from "@clerk/react";
 import { useTrackPageView } from "@workspace/api-client-react";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X } from "lucide-react";
 import { useState } from "react";
 import logo from "@/assets/logo.png";
 import { ChatWidget } from "@/components/ChatWidget";
+import { getVisitorId } from "@/lib/visitor";
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const trackPageView = useTrackPageView();
+  const visitorId = useMemo(getVisitorId, []);
+  const trackRequest = useMemo(() => ({ headers: { "x-visitor-id": visitorId } }), [visitorId]);
+  const trackPageView = useTrackPageView({ request: trackRequest });
 
   useEffect(() => {
     trackPageView.mutate({

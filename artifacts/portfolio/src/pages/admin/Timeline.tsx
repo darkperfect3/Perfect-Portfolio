@@ -11,7 +11,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format, parseISO } from "date-fns";
-
 type TimelineEntryType = TimelineEntry;
 type CreateTimelineEntryBodyType = CreateTimelineEntryBody;
 type UpdateTimelineEntryBodyType = UpdateTimelineEntryBody;
@@ -39,7 +38,6 @@ export default function AdminTimeline() {
   const [formData, setFormData] = useState(defaultForm);
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: getListTimelineQueryKey() });
-
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
     createEntry.mutate({ data: { ...formData, endDate: formData.current ? null : (formData.endDate || null) } }, {
@@ -66,7 +64,6 @@ export default function AdminTimeline() {
   };
 
   const suggestTimeline = useSuggestTimelineEntry();
-
   const handleAiSuggest = () => {
     suggestTimeline.mutate({ data: { title: formData.title, organization: formData.organization, description: formData.description, type: formData.type } }, {
       onSuccess: (suggestion) => {
@@ -77,7 +74,10 @@ export default function AdminTimeline() {
     });
   };
 
-  const FormContent = () => (
+  // ⬇️ FIX : ce n'est plus un composant fonction (const FormContent = () => (...))
+  // mais une simple variable JSX, réévaluée à chaque render sans provoquer
+  // de démontage/remontage des champs. C'est ce qui causait la perte de focus.
+  const formContent = (
     <div className="space-y-5">
       <div className="flex justify-end">
         <Button type="button" size="sm" variant="secondary" disabled={suggestTimeline.isPending} onClick={handleAiSuggest} className="gap-2 rounded-xl bg-primary/10 hover:bg-primary/20 text-primary border-0">
@@ -155,7 +155,7 @@ export default function AdminTimeline() {
               <DialogDescription>Fill in the details or use the AI suggestion button to auto-generate content.</DialogDescription>
             </DialogHeader>
             <form onSubmit={handleCreate}>
-              <div className="pt-4"><FormContent /></div>
+              <div className="pt-4">{formContent}</div>
               <DialogFooter className="mt-6">
                 <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)} className="rounded-xl border-white/[0.08]">Cancel</Button>
                 <Button type="submit" disabled={createEntry.isPending} className="rounded-xl">Create Entry</Button>
@@ -166,13 +166,13 @@ export default function AdminTimeline() {
       </div>
 
       <Dialog open={!!editingEntry} onOpenChange={(open) => !open && setEditingEntry(null)}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto border-white/[0.08]" style={{ background: "rgba(12,12,15,0.95)", backdropFilter: "blur(24px)" }}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto border-white/[0.08]" style={{ background: "rgba(12,12,15,0.95)", backdropFilter: "blur(24px)" }}>
           <DialogHeader>
             <DialogTitle>Edit Entry</DialogTitle>
             <DialogDescription>Update the entry details or use the AI suggestion button to refresh content.</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleUpdate}>
-            <div className="pt-4"><FormContent /></div>
+            <div className="pt-4">{formContent}</div>
             <DialogFooter className="mt-6">
               <Button type="button" variant="outline" onClick={() => setEditingEntry(null)} className="rounded-xl border-white/[0.08]">Cancel</Button>
               <Button type="submit" disabled={updateEntry.isPending} className="rounded-xl">Save Changes</Button>

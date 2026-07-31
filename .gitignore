@@ -47,3 +47,23 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+.replitignore
+.replit
+nul
+
+# Unused project artifacts and temporary files
+attached_assets/
+.agents/
+artifacts/mockup-sandbox/
+artifacts/api-server/dist/
+artifacts/portfolio/dist/
+lib/db/dist/
+lib/api-client-react/dist/
+lib/api-zod/dist/
+lib/object-storage-web/dist/
+lib/integrations-ai-relay/dist/
+lib/integrations-gemini-ai/dist/
+lib/api-spec/
+artifacts/portfolio/public/profile-portrait.jpg
+scripts/src/hello.ts
+.env

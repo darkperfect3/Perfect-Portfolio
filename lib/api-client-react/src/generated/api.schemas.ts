@@ -49,6 +49,7 @@ export interface Profile {
   location?: string | null;
   githubUrl?: string | null;
   linkedinUrl?: string | null;
+  whatsappUrl?: string | null;
   cvUrl?: string | null;
   skills: string[];
   updatedAt: string;
@@ -63,6 +64,7 @@ export interface UpdateProfileBody {
   location?: string | null;
   githubUrl?: string | null;
   linkedinUrl?: string | null;
+  whatsappUrl?: string | null;
   cvUrl?: string | null;
   skills?: string[];
 }
