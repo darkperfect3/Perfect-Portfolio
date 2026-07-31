@@ -2,6 +2,7 @@ services:
   - type: web
     name: attachment-manager-backend
     env: node
+    root: artifacts/api-server
     plan: starter
     buildCommand: pnpm --filter @workspace/api-server run build
     startCommand: pnpm --filter @workspace/api-server run start
