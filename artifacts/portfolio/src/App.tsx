@@ -37,6 +37,18 @@ const isExplicitClerkProxyUrl =
 const clerkProxyUrl = isExplicitClerkProxyUrl ? rawClerkProxyUrl : undefined;
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 
+const clerkKeyIsDev =
+  clerkPubKey?.startsWith("pk_test_") || clerkPubKey?.startsWith("pk_local_");
+if (!clerkPubKey) {
+  throw new Error("Missing VITE_CLERK_PUBLISHABLE_KEY in .env file");
+}
+if (import.meta.env.PROD && clerkKeyIsDev) {
+  throw new Error(
+    "Clerk is configured with a development publishable key in production. " +
+      "Set VITE_CLERK_PUBLISHABLE_KEY to a production/live Clerk key (pk_live_...) in Netlify.",
+  );
+}
+
 function stripBase(path: string): string {
   return basePath && path.startsWith(basePath)
     ? path.slice(basePath.length) || "/"
