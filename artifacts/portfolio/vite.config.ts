@@ -33,9 +33,27 @@ export default defineConfig(async ({ mode }) => {
     base: basePath,
     define: {
       "import.meta.env.VITE_CLERK_PUBLISHABLE_KEY": JSON.stringify(clerkPublishableKey),
+      "import.meta.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY": JSON.stringify(
+        process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ??
+          env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ??
+          process.env.VITE_CLERK_PUBLISHABLE_KEY ??
+          env.VITE_CLERK_PUBLISHABLE_KEY ??
+          "",
+      ),
       "import.meta.env.VITE_CLERK_PROXY_URL": JSON.stringify(clerkProxyUrl),
+      "import.meta.env.NEXT_PUBLIC_CLERK_PROXY_URL": JSON.stringify(
+        process.env.NEXT_PUBLIC_CLERK_PROXY_URL ??
+          env.NEXT_PUBLIC_CLERK_PROXY_URL ??
+          process.env.VITE_CLERK_PROXY_URL ??
+          env.VITE_CLERK_PROXY_URL ??
+          "",
+      ),
       "import.meta.env.VITE_API_BASE": JSON.stringify(
         process.env.VITE_API_BASE ?? env.VITE_API_BASE ?? process.env.API_BASE ?? env.API_BASE ?? null,
+      ),
+      "import.meta.env.NEXT_PUBLIC_API_BASE": JSON.stringify(
+        process.env.NEXT_PUBLIC_API_BASE ?? env.NEXT_PUBLIC_API_BASE ??
+          process.env.VITE_API_BASE ?? env.VITE_API_BASE ?? process.env.API_BASE ?? env.API_BASE ?? null,
       ),
     },
     plugins: [

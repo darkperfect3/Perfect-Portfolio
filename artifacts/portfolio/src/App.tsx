@@ -27,8 +27,14 @@ import NotFound from "@/pages/not-found";
 
 const ADMIN_EMAIL = "officialperfectdev@gmail.com";
 
-const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY?.trim();
-const rawClerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL?.trim();
+const clerkPubKey = (
+  import.meta.env.VITE_CLERK_PUBLISHABLE_KEY ??
+  import.meta.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+)?.trim();
+const rawClerkProxyUrl = (
+  import.meta.env.VITE_CLERK_PROXY_URL ??
+  import.meta.env.NEXT_PUBLIC_CLERK_PROXY_URL
+)?.trim();
 const isExplicitClerkProxyUrl =
   rawClerkProxyUrl && rawClerkProxyUrl !== "https://your-clerk-proxy.example.com";
 // Proxy Clerk: ne passer une URL de proxy que si elle est explicitement configurée

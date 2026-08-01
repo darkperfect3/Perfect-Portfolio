@@ -6,8 +6,10 @@ import { setBaseUrl } from "@workspace/api-client-react";
 // Configure API base for the generated client. In production set
 // `VITE_API_BASE` in your Netlify environment to the Render backend URL
 // (for example: https://perfect-portfolio.onrender.com).
-const apiBase = import.meta.env.VITE_API_BASE?.trim() ?? null;
-setBaseUrl(apiBase);
+const apiBase = (
+  import.meta.env.VITE_API_BASE ?? import.meta.env.NEXT_PUBLIC_API_BASE
+)?.trim();
+setBaseUrl(apiBase && apiBase !== "" ? apiBase : null);
 
 // Preload Clerk JS from a known CDN if not already provided by the runtime.
 // This prevents the Clerk loader from attempting to fetch a malformed URL.
