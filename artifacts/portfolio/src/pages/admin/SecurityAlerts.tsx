@@ -1,11 +1,11 @@
 import { useListSecurityAlerts, getListSecurityAlertsQueryKey } from "@workspace/api-client-react";
-import { useUser } from "@clerk/react";
+import { useAuth } from "@/lib/auth";
 import { format, parseISO } from "date-fns";
 import { ShieldAlert, ShieldX, ShieldCheck, Monitor, Mail, KeyRound, Clock } from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function AdminSecurityAlerts() {
-  const { user, isLoaded } = useUser();
+  const { user, isLoaded } = useAuth();
   const { data: alerts, isLoading } = useListSecurityAlerts({ query: { enabled: isLoaded && Boolean(user), queryKey: getListSecurityAlertsQueryKey() } });
 
   return (

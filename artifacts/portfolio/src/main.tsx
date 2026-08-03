@@ -11,20 +11,6 @@ const apiBase = (
 )?.trim();
 setBaseUrl(apiBase && apiBase !== "" ? apiBase : null);
 
-// Preload Clerk JS from a known CDN if not already provided by the runtime.
-// This prevents the Clerk loader from attempting to fetch a malformed URL.
-const clerkScriptUrl = "https://unpkg.com/@clerk/clerk-js@6/dist/clerk.browser.js";
-if (typeof document !== "undefined") {
-	const existing = document.querySelector(`script[src="${clerkScriptUrl}"]`);
-	if (!existing) {
-		const s = document.createElement("script");
-		s.src = clerkScriptUrl;
-		s.async = true;
-		s.crossOrigin = "anonymous";
-		document.head.appendChild(s);
-	}
-}
-
 if (typeof document !== "undefined") {
   document.body.style.visibility = "visible";
 }

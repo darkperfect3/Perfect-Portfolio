@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { useClerk, useUser } from "@clerk/react";
+import { useAuth } from "@/lib/auth";
 import { LayoutDashboard, User, FolderGit2, CalendarRange, Inbox, Bot, LogOut, ChevronLeft, Menu, ShieldAlert, Sparkles, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -11,8 +11,7 @@ const SUMMARY_SESSION_KEY = "admin-ai-summary-shown";
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
-  const { signOut } = useClerk();
-  const { user, isLoaded } = useUser();
+  const { signOut, user, isLoaded } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { data: securityAlerts } = useListSecurityAlerts({ query: { enabled: isLoaded && Boolean(user), queryKey: getListSecurityAlertsQueryKey() } });
   const alertCount = securityAlerts?.length ?? 0;

@@ -13,7 +13,7 @@ Premium professional portfolio platform built on a pnpm workspace monorepo. Feat
 - **Frontend**: React + Vite + TailwindCSS v4 (artifact: `artifacts/portfolio`, preview: `/`)
 - **API framework**: Express 5 (artifact: `artifacts/api-server`, preview: `/api`)
 - **Database**: MongoDB (native driver)
-- **Auth**: Clerk
+- **Auth**: Google OAuth 2.0 configuration for admin access
 - **AI**: Relay AI using Mistral, Qwen and DeepSeek (`lib/integrations-ai-relay`)
 - **Validation**: Zod (`zod/v4`)
 - **API codegen**: Orval (from OpenAPI spec in `lib/api-spec/openapi.yaml`)
@@ -42,10 +42,10 @@ lib/
 - `/projects/:id` — Individual project detail page
 - `/timeline` — Alternating vertical timeline (work + education history)
 - `/contact` — Contact form → saves to `contact_messages` table
-- `/sign-in` — Clerk sign-in (themed, dark mode)
-- `/sign-up` — Clerk sign-up (themed, dark mode)
+- `/sign-in` — Google sign-in for authorized admin users
+- `/sign-up` — Google sign-in for authorized admin users
 
-## Admin Dashboard (protected by Clerk auth)
+## Admin Dashboard (protected by Google OAuth 2.0 configuration)
 
 - `/admin` — Overview dashboard with Recharts analytics
 - `/admin/profile` — Edit profile (bio, title, skills, links)
@@ -86,7 +86,7 @@ lib/
 ## Environment Variables
 
 Backend
-- `CLERK_SECRET_KEY` — Clerk secret API key
+- `GOOGLE_CLIENT_ID` — Google OAuth 2.0 Client ID for backend ID token validation
 - `MONGODB_URI` — MongoDB connection string
 - `GOOGLE_APPLICATION_CREDENTIALS` — path to Google Cloud service account JSON (optional)
 - `GOOGLE_CLOUD_PROJECT` / `GCLOUD_PROJECT` / `GOOGLE_PROJECT_ID` — Google project ID for cloud storage
@@ -96,7 +96,7 @@ Backend
 - `PORT` — backend port (default: `3000`)
 
 Frontend
-- `VITE_CLERK_PUBLISHABLE_KEY` or `CLERK_PUBLISHABLE_KEY` — Clerk publishable key
+- `VITE_GOOGLE_CLIENT_ID` — Google OAuth 2.0 Client ID for browser-side auth
 
 ## Deployment
 
@@ -109,7 +109,7 @@ Frontend
 - `render.yaml` is included at repository root
 - Build command: `pnpm --filter @workspace/api-server run build`
 - Start command: `pnpm --filter @workspace/api-server run start`
-- Required environment variables: `CLERK_SECRET_KEY`, `MONGODB_URI`, `LOG_LEVEL`, `USE_LOCAL_OBJECT_STORAGE`
+- Required environment variables: `GOOGLE_CLIENT_ID`, `MONGODB_URI`, `LOG_LEVEL`, `USE_LOCAL_OBJECT_STORAGE`
 
 ## Design
 

@@ -1,14 +1,12 @@
 import { Switch, Route, useLocation, Router as WouterRouter } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { ClerkProvider, SignIn, SignUp, Show, useAuth, useClerk, useUser } from "@clerk/react";
-import { dark } from "@clerk/themes";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { queryClient } from "@/lib/queryClient";
-import { setAuthTokenGetter } from "@workspace/api-client-react";
+import { logSecurityAttempt } from "@workspace/api-client-react";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { logSecurityAttempt } from "@workspace/api-client-react";
 import { LoadingScreen } from "@/components/LoadingScreen";
+import { AuthProvider, useAuth, isGoogleAuthConfigured, authConfigErrorMessage, isAdminEmail } from "@/lib/auth";
 
 import { Layout } from "@/components/Layout";
 import { AdminLayout } from "@/components/AdminLayout";
@@ -26,31 +24,7 @@ import AdminAi from "@/pages/admin/Ai";
 import AdminSecurityAlerts from "@/pages/admin/SecurityAlerts";
 import NotFound from "@/pages/not-found";
 
-const ADMIN_EMAIL = "officialperfectdev@gmail.com";
-
-const clerkPubKey = (
-  import.meta.env.VITE_CLERK_PUBLISHABLE_KEY ??
-  import.meta.env.CLERK_PUBLISHABLE_KEY
-)?.trim();
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
-
-// Clerk will be loaded from the CDN by default; proxy support removed.
-
-const clerkKeyIsDev =
-  clerkPubKey?.startsWith("pk_test_") || clerkPubKey?.startsWith("pk_local_");
-
-// Do not throw here - prefer a graceful runtime fallback so the site can
-// render an actionable error UI instead of crashing the whole bundle.
-const missingClerkKey = !clerkPubKey;
-/*
-// TODO: réactiver cette vérification une fois la clé pk_live_ configurée en production
-if (import.meta.env.PROD && clerkKeyIsDev) {
-  console.error(
-    "Clerk is configured with a development publishable key in production. " +
-      "Set VITE_CLERK_PUBLISHABLE_KEY or CLERK_PUBLISHABLE_KEY to a production/live Clerk key (pk_live_...) in your hosting environment.",
-  );
-}
-*/
 
 function stripBase(path: string): string {
   return basePath && path.startsWith(basePath)
@@ -58,102 +32,62 @@ function stripBase(path: string): string {
     : path;
 }
 
-if (!clerkPubKey) {
-  throw new Error("Missing CLERK_PUBLISHABLE_KEY in .env file");
-}
-
-const clerkAppearance = {
-  theme: dark,
-  cssLayerName: "clerk",
-  options: {
-    logoPlacement: "inside" as const,
-    logoLinkUrl: basePath || "/",
-    logoImageUrl: `${window.location.origin}${basePath}/logo.svg`,
-  },
-  variables: {
-    colorPrimary: "hsl(190 90% 50%)",
-    colorForeground: "hsl(210 20% 98%)",
-    colorMutedForeground: "hsl(210 20% 60%)",
-    colorDanger: "hsl(0 84% 60%)",
-    colorBackground: "hsl(220 20% 4%)",
-    colorInput: "hsl(220 20% 10%)",
-    colorInputForeground: "hsl(210 20% 98%)",
-    colorNeutral: "hsl(220 20% 10%)",
-    fontFamily: "Inter, sans-serif",
-    borderRadius: "0.5rem",
-  },
-  elements: {
-    rootBox: "w-full flex justify-center",
-    cardBox: "bg-card rounded-2xl w-[440px] max-w-full overflow-hidden border border-border shadow-2xl shadow-primary/10",
-    card: "!shadow-none !border-0 !bg-transparent !rounded-none",
-    footer: "!shadow-none !border-0 !bg-transparent !rounded-none",
-    headerTitle: "font-heading text-2xl font-bold tracking-tight text-foreground",
-    headerSubtitle: "text-muted-foreground",
-    socialButtonsBlockButtonText: "text-foreground font-medium",
-    formFieldLabel: "text-foreground font-medium",
-    footerActionLink: "text-primary hover:text-primary/80 transition-colors font-medium",
-    footerActionText: "text-muted-foreground",
-    dividerText: "text-muted-foreground",
-    identityPreviewEditButton: "text-primary hover:text-primary/80 transition-colors",
-    formFieldSuccessText: "text-green-500",
-    alertText: "text-foreground",
-    logoBox: "justify-center mb-4",
-    logoImage: "w-12 h-12",
-    socialButtonsBlockButton: "border-border bg-background hover:bg-secondary/50 transition-colors",
-    formButtonPrimary: "bg-primary text-primary-foreground hover:bg-primary/90 transition-colors font-semibold",
-    formFieldInput: "bg-input border-border text-foreground focus:ring-2 focus:ring-ring focus:border-transparent transition-all",
-    footerAction: "pt-6 pb-2",
-    dividerLine: "bg-border",
-    alert: "bg-destructive/10 border-destructive text-destructive-foreground",
-    otpCodeFieldInput: "bg-input border-border text-foreground focus:ring-2 focus:ring-ring focus:border-transparent transition-all",
-    formFieldRow: "mb-4",
-    main: "flex flex-col gap-4",
-  },
-};
-
 function SignInPage() {
+  const { user, isLoaded, hasError } = useAuth();
+  const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    if (isLoaded && user) {
+      setLocation("/admin");
+    }
+  }, [user, isLoaded, setLocation]);
+
+  const isGoogleAvailable = typeof window !== "undefined" && Boolean(window.google?.accounts?.id);
+
+  const handleSignIn = useCallback(() => {
+    if (typeof window !== "undefined" && window.google?.accounts?.id) {
+      window.google.accounts.id.prompt();
+    }
+  }, []);
+
   return (
     <div className="flex min-h-[100dvh] items-center justify-center bg-background px-4 relative overflow-hidden">
       <div className="absolute inset-0 bg-[url('/hero-bg.png')] bg-cover bg-center opacity-20 mix-blend-screen" />
       <div className="absolute inset-0 bg-gradient-to-t from-background via-background/80 to-transparent" />
-      <div className="relative z-10">
-        <SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} />
+      <div className="relative z-10 max-w-md w-full text-center p-8 rounded-3xl border border-border bg-card shadow-2xl shadow-primary/10">
+        <div className="mb-6">
+          <h1 className="text-3xl font-heading font-bold tracking-tight text-foreground">Admin Sign In</h1>
+          <p className="mt-3 text-sm text-muted-foreground/80">Connectez-vous avec votre compte Google autorisé pour accéder au tableau de bord privé.</p>
+        </div>
+
+        {hasError ? (
+          <div className="rounded-2xl border border-destructive/20 bg-destructive/5 p-4 text-sm text-destructive">
+            Impossible de charger Google Auth. {authConfigErrorMessage || "Vérifiez votre configuration"}.
+          </div>
+        ) : (
+          <button
+            onClick={handleSignIn}
+            disabled={!isLoaded}
+            className="inline-flex items-center justify-center w-full rounded-2xl border border-border bg-background/80 px-5 py-3 text-sm font-semibold text-foreground transition hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isLoaded ? "Se connecter avec Google" : "Chargement de l'authentification..."}
+          </button>
+        )}
+
+        <div className="mt-6 text-xs text-muted-foreground/70">
+          {isGoogleAuthConfigured ? (
+            "Vous serez redirigé(e) après l'authentification Google."
+          ) : (
+            "Google OAuth 2.0 n'est pas configuré. Ajoutez VITE_GOOGLE_CLIENT_ID à votre environnement."
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
 function SignUpPage() {
-  return (
-    <div className="flex min-h-[100dvh] items-center justify-center bg-background px-4 relative overflow-hidden">
-      <div className="absolute inset-0 bg-[url('/hero-bg.png')] bg-cover bg-center opacity-20 mix-blend-screen" />
-      <div className="absolute inset-0 bg-gradient-to-t from-background via-background/80 to-transparent" />
-      <div className="relative z-10">
-        <SignUp routing="path" path={`${basePath}/sign-up`} signInUrl={`${basePath}/sign-in`} />
-      </div>
-    </div>
-  );
-}
-
-function ClerkQueryClientCacheInvalidator() {
-  const { addListener } = useClerk();
-  const prevUserIdRef = useRef<string | null | undefined>(undefined);
-
-  useEffect(() => {
-    const unsubscribe = addListener(({ user }) => {
-      const userId = user?.id ?? null;
-      if (
-        prevUserIdRef.current !== undefined &&
-        prevUserIdRef.current !== userId
-      ) {
-        queryClient.clear();
-      }
-      prevUserIdRef.current = userId;
-    });
-    return unsubscribe;
-  }, [addListener]);
-
-  return null;
+  return <SignInPage />;
 }
 
 function SignOutRedirect() {
@@ -192,8 +126,7 @@ function AccessDeniedPopup({ email, onClose }: { email: string; onClose: () => v
 }
 
 function AdminGuard({ component: Component }: { component: React.ComponentType }) {
-  const { user, isLoaded } = useUser();
-  const { signOut } = useClerk();
+  const { user, isLoaded, signOut } = useAuth();
   const [, setLocation] = useLocation();
   const [deniedEmail, setDeniedEmail] = useState<string | null>(null);
   const loggedRef = useRef(false);
@@ -210,14 +143,14 @@ function AdminGuard({ component: Component }: { component: React.ComponentType }
       // silent
     }
     setDeniedEmail(email);
-    await signOut();
+    signOut();
   }, [signOut]);
 
   useEffect(() => {
-    if (!isLoaded || !user) return;
-    const email = user.primaryEmailAddress?.emailAddress ?? "";
-    if (email.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
-      handleDeny(email);
+    if (!isLoaded) return;
+    if (!user) return;
+    if (!isAdminEmail(user.email)) {
+      handleDeny(user.email);
     }
   }, [user, isLoaded, handleDeny]);
 
@@ -288,130 +221,90 @@ function RouteLoadingScreen() {
   return <LoadingScreen progress={progress} />;
 }
 
-function ClerkProviderWithRoutes() {
-  const { isLoaded, getToken } = useAuth();
-  const [, setLocation] = useLocation();
-
-  useEffect(() => {
-    setAuthTokenGetter(async () => {
-      if (!isLoaded) return null;
-      try {
-        return await getToken();
-      } catch {
-        return null;
-      }
-    });
-
-    return () => {
-      setAuthTokenGetter(null);
-    };
-  }, [getToken, isLoaded]);
-
-  if (missingClerkKey) {
+function AppRoutes() {
+  if (!isGoogleAuthConfigured) {
     return (
       <div className="min-h-[100dvh] flex items-center justify-center p-6">
         <div className="max-w-xl text-center bg-card border border-border rounded-2xl p-8">
-          <h2 className="text-lg font-heading font-bold mb-2">Clerk configuration manquante</h2>
-          <p className="text-sm text-muted-foreground/70 mb-4">La clé publique Clerk n'est pas définie lors de la compilation. Définissez `CLERK_PUBLISHABLE_KEY` ou `VITE_CLERK_PUBLISHABLE_KEY` dans les variables d'environnement de votre service (Netlify / Render) puis rebuild le site.</p>
-          <p className="text-xs text-muted-foreground/50">Si vous êtes en environnement de production, utilisez une clé publique de production commençant par <span className="font-mono">pk_live_</span>.</p>
+          <h2 className="text-lg font-heading font-bold mb-2">Configuration Google OAuth manquante</h2>
+          <p className="text-sm text-muted-foreground/70 mb-4">La variable d'environnement <code>VITE_GOOGLE_CLIENT_ID</code> n'est pas configurée pour Google OAuth 2.0.</p>
+          <p className="text-xs text-muted-foreground/50">Ajoutez-la à votre environnement de build et rechargez l'application.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <ClerkProvider
-      publishableKey={clerkPubKey}
-      appearance={clerkAppearance}
-      signInUrl={`${basePath}/sign-in`}
-      signUpUrl={`${basePath}/sign-up`}
-      localization={{
-        signIn: {
-          start: {
-            title: "Studio Access",
-            subtitle: "Enter your credentials to continue",
-          },
-        },
-        signUp: {
-          start: {
-            title: "Join Studio",
-            subtitle: "Create your creator account",
-          },
-        },
-      }}
-      routerPush={(to) => setLocation(stripBase(to))}
-      routerReplace={(to) => setLocation(stripBase(to), { replace: true })}
-    >
-      <QueryClientProvider client={queryClient}>
-        <ClerkQueryClientCacheInvalidator />
-        <RouteLoadingScreen />
-        <Switch>
-          <Route path="/sign-in/*?" component={SignInPage} />
-          <Route path="/sign-up/*?" component={SignUpPage} />
+    <QueryClientProvider client={queryClient}>
+      <RouteLoadingScreen />
+      <Switch>
+        <Route path="/sign-in/*?" component={SignInPage} />
+        <Route path="/sign-up/*?" component={SignUpPage} />
 
-          {/* Admin Routes */}
-          <Route path="/admin">
-            <AdminGuard component={AdminDashboard} />
-          </Route>
-          <Route path="/admin/profile">
-            <AdminGuard component={AdminProfile} />
-          </Route>
-          <Route path="/admin/projects">
-            <AdminGuard component={AdminProjects} />
-          </Route>
-          <Route path="/admin/timeline">
-            <AdminGuard component={AdminTimeline} />
-          </Route>
-          <Route path="/admin/messages">
-            <AdminGuard component={AdminMessages} />
-          </Route>
-          <Route path="/admin/ai">
-            <AdminGuard component={AdminAi} />
-          </Route>
-          <Route path="/admin/security">
-            <AdminGuard component={AdminSecurityAlerts} />
-          </Route>
+        {/* Admin Routes */}
+        <Route path="/admin">
+          <AdminGuard component={AdminDashboard} />
+        </Route>
+        <Route path="/admin/profile">
+          <AdminGuard component={AdminProfile} />
+        </Route>
+        <Route path="/admin/projects">
+          <AdminGuard component={AdminProjects} />
+        </Route>
+        <Route path="/admin/timeline">
+          <AdminGuard component={AdminTimeline} />
+        </Route>
+        <Route path="/admin/messages">
+          <AdminGuard component={AdminMessages} />
+        </Route>
+        <Route path="/admin/ai">
+          <AdminGuard component={AdminAi} />
+        </Route>
+        <Route path="/admin/security">
+          <AdminGuard component={AdminSecurityAlerts} />
+        </Route>
 
-          {/* Public Routes */}
-          <Route path="/">
-            <Layout>
-              <Home />
-            </Layout>
-          </Route>
-          <Route path="/projects">
-            <Layout>
-              <Projects />
-            </Layout>
-          </Route>
-          <Route path="/projects/:id">
-            <Layout>
-              <ProjectDetail />
-            </Layout>
-          </Route>
-          <Route path="/timeline">
-            <Layout>
-              <Timeline />
-            </Layout>
-          </Route>
-          <Route path="/contact">
-            <Layout>
-              <Contact />
-            </Layout>
-          </Route>
+        {/* Public Routes */}
+        <Route path="/">
+          <Layout>
+            <Home />
+          </Layout>
+        </Route>
+        <Route path="/projects">
+          <Layout>
+            <Projects />
+          </Layout>
+        </Route>
+        <Route path="/projects/:id">
+          <Layout>
+            <ProjectDetail />
+          </Layout>
+        </Route>
+        <Route path="/timeline">
+          <Layout>
+            <Timeline />
+          </Layout>
+        </Route>
+        <Route path="/contact">
+          <Layout>
+            <Contact />
+          </Layout>
+        </Route>
 
-          <Route component={NotFound} />
-        </Switch>
-      </QueryClientProvider>
-    </ClerkProvider>
+        <Route component={NotFound} />
+      </Switch>
+    </QueryClientProvider>
   );
 }
 
 function App() {
   return (
     <TooltipProvider>
-      <WouterRouter base={basePath}>
-        <ClerkProviderWithRoutes />
-      </WouterRouter>
+      <AuthProvider>
+        <WouterRouter base={basePath}>
+          <AppRoutes />
+        </WouterRouter>
+      </AuthProvider>
       <Toaster />
     </TooltipProvider>
   );

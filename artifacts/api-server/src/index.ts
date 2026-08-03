@@ -8,10 +8,6 @@ const envPath = path.resolve(__dirname, "../../../.env");
 
 dotenv.config({ path: envPath });
 
-if (process.env.CLERK_SECRET_KEY?.trim() === "your-clerk-secret-key") {
-  delete process.env.CLERK_SECRET_KEY;
-}
-
 const { default: app } = await import("./app");
 const { logger } = await import("./lib/logger");
 

@@ -10,8 +10,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@clerk/express": "^2.1.10",
-    "@clerk/shared": "^4.8.6",
+    "google-auth-library": "^10.9.0",
+    "jsonwebtoken": "^9.0.0",
     "@google-cloud/storage": "^7.21.0",
     "@workspace/api-zod": "workspace:*",
     "@workspace/db": "workspace:*",
@@ -20,12 +20,12 @@
     "cors": "^2",
     "dotenv": "^16.3.1",
     "express": "^5",
-    "google-auth-library": "^10.9.0",
     "http-proxy-middleware": "^3.0.5",
     "pino": "^9",
     "pino-http": "^10"
   },
   "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.0",
     "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",

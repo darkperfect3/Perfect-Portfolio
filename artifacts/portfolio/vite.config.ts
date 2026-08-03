@@ -16,25 +16,18 @@ const workspaceRoot = path.resolve(import.meta.dirname, "../..");
 
 export default defineConfig(async ({ mode }) => {
   const env = loadEnv(mode, workspaceRoot, "");
-  const clerkPublishableKey =
-    process.env.CLERK_PUBLISHABLE_KEY ??
-    process.env.VITE_CLERK_PUBLISHABLE_KEY ??
-    env.CLERK_PUBLISHABLE_KEY ??
-    env.VITE_CLERK_PUBLISHABLE_KEY ??
+  const googleClientId =
+    process.env.VITE_GOOGLE_CLIENT_ID ??
+    env.VITE_GOOGLE_CLIENT_ID ??
+    process.env.GOOGLE_CLIENT_ID ??
+    env.GOOGLE_CLIENT_ID ??
     "";
 
   return {
     base: basePath,
     define: {
-      "import.meta.env.VITE_CLERK_PUBLISHABLE_KEY": JSON.stringify(clerkPublishableKey),
-      "import.meta.env.CLERK_PUBLISHABLE_KEY": JSON.stringify(
-        process.env.CLERK_PUBLISHABLE_KEY ??
-          env.CLERK_PUBLISHABLE_KEY ??
-          process.env.VITE_CLERK_PUBLISHABLE_KEY ??
-          env.VITE_CLERK_PUBLISHABLE_KEY ??
-          "",
-      ),
-      // Proxy variables removed — Clerk will load from CDN by default.
+      "import.meta.env.VITE_GOOGLE_CLIENT_ID": JSON.stringify(googleClientId),
+      "import.meta.env.GOOGLE_CLIENT_ID": JSON.stringify(googleClientId),
       "import.meta.env.VITE_API_BASE": JSON.stringify(
         process.env.VITE_API_BASE ?? env.VITE_API_BASE ?? process.env.API_BASE ?? env.API_BASE ?? null,
       ),

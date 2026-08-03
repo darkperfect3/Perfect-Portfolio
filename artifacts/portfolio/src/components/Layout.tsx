@@ -1,5 +1,4 @@
 import { Link, useLocation } from "wouter";
-import { Show } from "@clerk/react";
 import { useTrackPageView } from "@workspace/api-client-react";
 import { useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -8,6 +7,7 @@ import { useState } from "react";
 import logo from "@/assets/logo.png";
 import { ChatWidget } from "@/components/ChatWidget";
 import { getVisitorId } from "@/lib/visitor";
+import { useAuth, isAdminEmail } from "@/lib/auth";
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
@@ -15,6 +15,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const visitorId = useMemo(getVisitorId, []);
   const trackRequest = useMemo(() => ({ headers: { "x-visitor-id": visitorId } }), [visitorId]);
   const trackPageView = useTrackPageView({ request: trackRequest });
+  const { user } = useAuth();
 
   useEffect(() => {
     trackPageView.mutate({
@@ -38,12 +39,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <NavLink href="/projects" active={location.startsWith("/projects")}>Work</NavLink>
             <NavLink href="/timeline" active={location === "/timeline"}>Journey</NavLink>
             <NavLink href="/contact" active={location === "/contact"}>Contact</NavLink>
-            <Show when="signed-in">
+            {user && isAdminEmail(user.email) && (
               <Link href="/admin"
                 className="ml-3 text-sm font-medium px-4 py-2 rounded-full border border-primary/25 text-primary hover:bg-primary/10 transition-all duration-200">
                 Dashboard
               </Link>
-            </Show>
+            )}
           </nav>
 
           <button
@@ -84,13 +85,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   </Link>
                 </motion.div>
               ))}
-              <Show when="signed-in">
+              {user && isAdminEmail(user.email) && (
                 <motion.div initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}>
                   <Link href="/admin" className="flex items-center px-4 py-3.5 rounded-2xl text-lg font-heading font-semibold text-primary hover:bg-primary/10 transition-colors mt-4">
                     Dashboard →
                   </Link>
                 </motion.div>
-              </Show>
+              )}
             </nav>
           </motion.div>
         )}
