@@ -1,9 +1,10 @@
 import { Switch, Route, useLocation, Router as WouterRouter } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { ClerkProvider, SignIn, SignUp, Show, useClerk, useUser } from "@clerk/react";
+import { ClerkProvider, SignIn, SignUp, Show, useAuth, useClerk, useUser } from "@clerk/react";
 import { dark } from "@clerk/themes";
 import { useEffect, useRef, useState, useCallback } from "react";
 import { queryClient } from "@/lib/queryClient";
+import { setAuthTokenGetter } from "@workspace/api-client-react";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { logSecurityAttempt } from "@workspace/api-client-react";
@@ -288,7 +289,23 @@ function RouteLoadingScreen() {
 }
 
 function ClerkProviderWithRoutes() {
+  const { isLoaded, getToken } = useAuth();
   const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    setAuthTokenGetter(async () => {
+      if (!isLoaded) return null;
+      try {
+        return await getToken();
+      } catch {
+        return null;
+      }
+    });
+
+    return () => {
+      setAuthTokenGetter(null);
+    };
+  }, [getToken, isLoaded]);
 
   if (missingClerkKey) {
     return (
