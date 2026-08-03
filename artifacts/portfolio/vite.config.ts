@@ -22,32 +22,19 @@ export default defineConfig(async ({ mode }) => {
     env.CLERK_PUBLISHABLE_KEY ??
     env.VITE_CLERK_PUBLISHABLE_KEY ??
     "";
-  const clerkProxyUrl =
-    process.env.CLERK_PROXY_URL ??
-    process.env.VITE_CLERK_PROXY_URL ??
-    env.CLERK_PROXY_URL ??
-    env.VITE_CLERK_PROXY_URL ??
-    "";
 
   return {
     base: basePath,
     define: {
       "import.meta.env.VITE_CLERK_PUBLISHABLE_KEY": JSON.stringify(clerkPublishableKey),
-      "import.meta.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY": JSON.stringify(
-        process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ??
-          env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ??
+      "import.meta.env.CLERK_PUBLISHABLE_KEY": JSON.stringify(
+        process.env.CLERK_PUBLISHABLE_KEY ??
+          env.CLERK_PUBLISHABLE_KEY ??
           process.env.VITE_CLERK_PUBLISHABLE_KEY ??
           env.VITE_CLERK_PUBLISHABLE_KEY ??
           "",
       ),
-      "import.meta.env.VITE_CLERK_PROXY_URL": JSON.stringify(clerkProxyUrl),
-      "import.meta.env.NEXT_PUBLIC_CLERK_PROXY_URL": JSON.stringify(
-        process.env.NEXT_PUBLIC_CLERK_PROXY_URL ??
-          env.NEXT_PUBLIC_CLERK_PROXY_URL ??
-          process.env.VITE_CLERK_PROXY_URL ??
-          env.VITE_CLERK_PROXY_URL ??
-          "",
-      ),
+      // Proxy variables removed — Clerk will load from CDN by default.
       "import.meta.env.VITE_API_BASE": JSON.stringify(
         process.env.VITE_API_BASE ?? env.VITE_API_BASE ?? process.env.API_BASE ?? env.API_BASE ?? null,
       ),

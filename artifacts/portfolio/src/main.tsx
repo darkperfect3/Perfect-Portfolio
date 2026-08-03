@@ -25,4 +25,8 @@ if (typeof document !== "undefined") {
 	}
 }
 
+if (typeof document !== "undefined") {
+  document.body.style.visibility = "visible";
+}
+
 createRoot(document.getElementById("root")!).render(<App />);

@@ -96,8 +96,7 @@ Backend
 - `PORT` — backend port (default: `3000`)
 
 Frontend
-- `VITE_CLERK_PUBLISHABLE_KEY` — Clerk publishable key
-- `VITE_CLERK_PROXY_URL` — optional Clerk proxy URL
+- `VITE_CLERK_PUBLISHABLE_KEY` or `CLERK_PUBLISHABLE_KEY` — Clerk publishable key
 
 ## Deployment
 

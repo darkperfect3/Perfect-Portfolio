@@ -21,12 +21,12 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   const { data: aiSummary, isLoading: isSummaryLoading, refetch: fetchSummary } = useGetAiDashboardSummary({ query: { enabled: false, queryKey: getGetAiDashboardSummaryQueryKey() } });
 
   useEffect(() => {
+    if (!isLoaded || !user) return;
     if (sessionStorage.getItem(SUMMARY_SESSION_KEY)) return;
     sessionStorage.setItem(SUMMARY_SESSION_KEY, "1");
     setIsSummaryOpen(true);
     fetchSummary();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isLoaded, user, fetchSummary]);
 
   const links = [
     { href: "/admin", label: "Dashboard", icon: LayoutDashboard },

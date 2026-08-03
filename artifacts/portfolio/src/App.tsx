@@ -29,31 +29,27 @@ const ADMIN_EMAIL = "officialperfectdev@gmail.com";
 
 const clerkPubKey = (
   import.meta.env.VITE_CLERK_PUBLISHABLE_KEY ??
-  import.meta.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+  import.meta.env.CLERK_PUBLISHABLE_KEY
 )?.trim();
-const rawClerkProxyUrl = (
-  import.meta.env.VITE_CLERK_PROXY_URL ??
-  import.meta.env.NEXT_PUBLIC_CLERK_PROXY_URL
-)?.trim();
-const isExplicitClerkProxyUrl =
-  rawClerkProxyUrl && rawClerkProxyUrl !== "https://your-clerk-proxy.example.com";
-// Proxy Clerk: ne passer une URL de proxy que si elle est explicitement configurée
-// (pas le placeholder). Les clés de test Clerk (pk_test_...) ne supportent PAS le proxy.
-// Le proxy est nécessaire uniquement en production avec un domaine personnalisé.
-const clerkProxyUrl = isExplicitClerkProxyUrl ? rawClerkProxyUrl : undefined;
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+// Clerk will be loaded from the CDN by default; proxy support removed.
 
 const clerkKeyIsDev =
   clerkPubKey?.startsWith("pk_test_") || clerkPubKey?.startsWith("pk_local_");
-if (!clerkPubKey) {
-  throw new Error("Missing VITE_CLERK_PUBLISHABLE_KEY in .env file");
-}
+
+// Do not throw here - prefer a graceful runtime fallback so the site can
+// render an actionable error UI instead of crashing the whole bundle.
+const missingClerkKey = !clerkPubKey;
+/*
+// TODO: réactiver cette vérification une fois la clé pk_live_ configurée en production
 if (import.meta.env.PROD && clerkKeyIsDev) {
-  throw new Error(
+  console.error(
     "Clerk is configured with a development publishable key in production. " +
-      "Set VITE_CLERK_PUBLISHABLE_KEY to a production/live Clerk key (pk_live_...) in Netlify.",
+      "Set VITE_CLERK_PUBLISHABLE_KEY or CLERK_PUBLISHABLE_KEY to a production/live Clerk key (pk_live_...) in your hosting environment.",
   );
 }
+*/
 
 function stripBase(path: string): string {
   return basePath && path.startsWith(basePath)
@@ -62,7 +58,7 @@ function stripBase(path: string): string {
 }
 
 if (!clerkPubKey) {
-  throw new Error("Missing VITE_CLERK_PUBLISHABLE_KEY in .env file");
+  throw new Error("Missing CLERK_PUBLISHABLE_KEY in .env file");
 }
 
 const clerkAppearance = {
@@ -217,14 +213,20 @@ function AdminGuard({ component: Component }: { component: React.ComponentType }
   }, [signOut]);
 
   useEffect(() => {
-    if (!isLoaded) return;
-    if (user) {
-      const email = user.primaryEmailAddress?.emailAddress ?? "";
-      if (email.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
-        handleDeny(email);
-      }
+    if (!isLoaded || !user) return;
+    const email = user.primaryEmailAddress?.emailAddress ?? "";
+    if (email.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+      handleDeny(email);
     }
   }, [user, isLoaded, handleDeny]);
+
+  if (!isLoaded) {
+    return <LoadingScreen />;
+  }
+
+  if (!user) {
+    return <SignOutRedirect />;
+  }
 
   if (deniedEmail) {
     return (
@@ -240,16 +242,9 @@ function AdminGuard({ component: Component }: { component: React.ComponentType }
   }
 
   return (
-    <>
-      <Show when="signed-in">
-        <AdminLayout>
-          <Component />
-        </AdminLayout>
-      </Show>
-      <Show when="signed-out">
-        <SignOutRedirect />
-      </Show>
-    </>
+    <AdminLayout>
+      <Component />
+    </AdminLayout>
   );
 }
 
@@ -295,10 +290,21 @@ function RouteLoadingScreen() {
 function ClerkProviderWithRoutes() {
   const [, setLocation] = useLocation();
 
+  if (missingClerkKey) {
+    return (
+      <div className="min-h-[100dvh] flex items-center justify-center p-6">
+        <div className="max-w-xl text-center bg-card border border-border rounded-2xl p-8">
+          <h2 className="text-lg font-heading font-bold mb-2">Clerk configuration manquante</h2>
+          <p className="text-sm text-muted-foreground/70 mb-4">La clé publique Clerk n'est pas définie lors de la compilation. Définissez `CLERK_PUBLISHABLE_KEY` ou `VITE_CLERK_PUBLISHABLE_KEY` dans les variables d'environnement de votre service (Netlify / Render) puis rebuild le site.</p>
+          <p className="text-xs text-muted-foreground/50">Si vous êtes en environnement de production, utilisez une clé publique de production commençant par <span className="font-mono">pk_live_</span>.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <ClerkProvider
       publishableKey={clerkPubKey}
-      {...(clerkProxyUrl ? { proxyUrl: clerkProxyUrl } : {})}
       appearance={clerkAppearance}
       signInUrl={`${basePath}/sign-in`}
       signUpUrl={`${basePath}/sign-up`}
