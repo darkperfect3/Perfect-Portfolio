@@ -221,7 +221,7 @@ function AdminGuard({ component: Component }: { component: React.ComponentType }
   }, [user, isLoaded, handleDeny]);
 
   if (!isLoaded) {
-    return <LoadingScreen />;
+    return <LoadingScreen progress={0} />;
   }
 
   if (!user) {
