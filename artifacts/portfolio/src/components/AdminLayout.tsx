@@ -97,16 +97,16 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         {/* User + actions */}
         <div className="p-3 border-t border-white/[0.05]">
           <div className="flex items-center gap-3 px-3 py-2.5 mb-1 rounded-xl bg-white/[0.03] border border-white/[0.05]">
-            {user?.imageUrl ? (
-              <img src={user.imageUrl} alt={user.fullName || "User"} className="w-7 h-7 rounded-full ring-1 ring-primary/30" />
+            {user?.picture ? (
+              <img src={user.picture} alt={user.name || "User"} className="w-7 h-7 rounded-full ring-1 ring-primary/30" />
             ) : (
               <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-primary text-xs font-bold">
-                {user?.firstName?.[0] ?? "A"}
+                {user?.name?.[0] ?? user?.email?.[0] ?? "A"}
               </div>
             )}
             <div className="flex flex-col min-w-0">
-              <span className="text-xs font-semibold leading-none truncate">{user?.fullName}</span>
-              <span className="text-[10px] text-muted-foreground mt-0.5 truncate">{user?.primaryEmailAddress?.emailAddress}</span>
+              <span className="text-xs font-semibold leading-none truncate">{user?.name ?? user?.email}</span>
+              <span className="text-[10px] text-muted-foreground mt-0.5 truncate">{user?.email}</span>
             </div>
           </div>
           <Link href="/" className="w-full" onClick={() => setIsSidebarOpen(false)}>
